@@ -1,19 +1,10 @@
 /*
     RespondX SQL Server schema
 
-    Run this script in SQL Server Management Studio or sqlcmd. It creates the
-    RespondX database when needed, then creates any missing application tables.
-    Existing tables and data are not dropped.
+    Run this script in SQL Server Management Studio or sqlcmd while connected
+    to the target database. It creates missing application tables. Existing
+    tables and data are not dropped.
 */
-
-IF DB_ID(N'RespondX') IS NULL
-BEGIN
-    EXEC(N'CREATE DATABASE [RespondX]');
-END;
-GO
-
-USE [RespondX];
-GO
 
 SET ANSI_NULLS ON;
 SET QUOTED_IDENTIFIER ON;
@@ -39,6 +30,21 @@ BEGIN
         CONSTRAINT UQ_Users_Username UNIQUE (Username),
         CONSTRAINT UQ_Users_Email UNIQUE (Email)
     );
+END;
+GO
+
+/* Development administrator account: username admin, password Admin@123.
+   Change this password immediately after the first login. Run this schema on
+   the same database configured for the deployed website. */
+IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Username = N'admin' OR Email = N'admin@respondx.local')
+BEGIN
+    INSERT INTO dbo.Users
+        (Username, Email, PasswordHash, Salt, FirstName, LastName, Role, IsActive)
+    VALUES
+        (N'admin', N'admin@respondx.local',
+         N'PTuAGIDAoVNTrWb51bHPIbiY3s2o/NUjxUue1HhkFt4=',
+         N'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=',
+         N'System', N'Administrator', N'Admin', 1);
 END;
 GO
 
