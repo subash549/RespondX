@@ -18,7 +18,7 @@
                     <asp:Label ID="lblError" runat="server"></asp:Label>
                 </asp:Panel>
 
-                <asp:Panel ID="pnlFilters" runat="server" CssClass="filter-bar" DefaultButton="btnSearch">
+                <asp:Panel ID="pnlFilters" runat="server" CssClass="filter-bar">
                     <div class="filter-group">
                         <label for="<%= ddlRole.ClientID %>">Role:</label>
                         <asp:DropDownList ID="ddlRole" runat="server" AutoPostBack="true" OnSelectedIndexChanged="Filter_Changed">
@@ -98,7 +98,7 @@
                                 <h5 class="modal-title"><asp:Label ID="lblModalTitle" runat="server" Text="Add User"></asp:Label></h5>
                                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
                             </div>
-                            <asp:Panel ID="pnlUserForm" runat="server" CssClass="modal-body" DefaultButton="btnSaveUser">
+                            <asp:Panel ID="pnlUserForm" runat="server" CssClass="modal-body">
                                 <asp:HiddenField ID="hfUserID" runat="server" />
                                 <asp:Panel ID="pnlModalError" runat="server" CssClass="alert alert-danger" Visible="false">
                                     <asp:Label ID="lblModalError" runat="server"></asp:Label>

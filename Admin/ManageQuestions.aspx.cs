@@ -285,6 +285,7 @@ namespace RespondX.Admin
             {
                 int questionId;
                 bool isEdit = int.TryParse(hfQuestionID.Value, out questionId) && questionId > 0;
+                string questionSummary = txtQuestionText.Text.Trim();
                 if (isEdit)
                     QuizQuestionRepository.UpdateQuestion(quizId, questionId, txtQuestionText.Text, points, options, correctOptionIndex);
                 else
@@ -293,6 +294,8 @@ namespace RespondX.Admin
                 ClearForm();
                 LoadSelectedQuiz();
                 ShowSuccess(isEdit ? "Question updated. Learners will see the updated version." : "Question saved. Learners will see it in this quiz.");
+                try { NotificationRepository.NotifyRoles("Content", isEdit ? "Quiz question updated" : "New quiz question added", questionSummary, "~/Learner/Quizzes.aspx", SessionHelper.GetCurrentUserId(), "Learner", "Expert"); }
+                catch (Exception notificationError) { DatabaseHelper.LogError("Quiz question notification", notificationError.Message, notificationError.StackTrace); }
                 ScriptManager.RegisterStartupScript(this, GetType(), "hideQuestionModal", "$('#modalQuestion').modal('hide');", true);
             }
             catch (InvalidOperationException ex)

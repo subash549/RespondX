@@ -42,6 +42,24 @@ namespace RespondX
         protected global::System.Web.UI.ScriptManager ScriptManager1;
 
         /// <summary>
+        /// imgNavProfile control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Image imgNavProfile;
+
+        /// <summary>
+        /// phPublicNavigation control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.PlaceHolder phPublicNavigation;
+
+        /// <summary>
         /// phGuestLinks control.
         /// </summary>
         /// <remarks>
@@ -49,11 +67,6 @@ namespace RespondX
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.PlaceHolder phGuestLinks;
-
-        /// <summary>
-        /// phPublicNavigation control.
-        /// </summary>
-        protected global::System.Web.UI.WebControls.PlaceHolder phPublicNavigation;
 
         /// <summary>
         /// phLearnerLinks control.
@@ -81,6 +94,24 @@ namespace RespondX
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.PlaceHolder phExpertLinks;
+
+        /// <summary>
+        /// pnlNotificationBell control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Panel pnlNotificationBell;
+
+        /// <summary>
+        /// lblNotificationCount control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblNotificationCount;
 
         /// <summary>
         /// MainContent control.

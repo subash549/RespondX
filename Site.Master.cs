@@ -15,6 +15,29 @@ namespace RespondX
             if (isLoggedIn)
             {
                 phGuestLinks.Visible = false;
+                var currentUser = SessionHelper.GetCurrentUser();
+                var userId = SessionHelper.GetCurrentUserId();
+                if (userId.HasValue)
+                {
+                    pnlNotificationBell.Visible = true;
+                    try
+                    {
+                        int unreadNotifications = NotificationRepository.GetUnreadCount(userId.Value);
+                        lblNotificationCount.Visible = unreadNotifications > 0;
+                        lblNotificationCount.Text = unreadNotifications > 99 ? "99+" : unreadNotifications.ToString();
+                    }
+                    catch (Exception ex)
+                    {
+                        // The page remains usable if the notification schema has not been applied yet.
+                        DatabaseHelper.LogError("Load notification count", ex.Message, ex.StackTrace);
+                        lblNotificationCount.Visible = false;
+                    }
+                }
+                if (currentUser != null && !string.IsNullOrWhiteSpace(currentUser.ProfileImage))
+                {
+                    imgNavProfile.ImageUrl = ResolveUrl(currentUser.ProfileImage);
+                    imgNavProfile.Visible = true;
+                }
                 
                 string role = SessionHelper.GetUserRole();
                 if (string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))

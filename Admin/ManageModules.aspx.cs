@@ -389,9 +389,16 @@ namespace RespondX.Admin
             }
 
             ShowSuccess(isNew ? "Module added." : "Module updated.");
+            NotifyUsersOfNewContent(isNew ? "New module available" : "Module updated", title, "~/Learner/Modules.aspx");
             ClearForm();
             LoadModules();
             UiHelper.HideModal(this, "modalModule");
+        }
+
+        private void NotifyUsersOfNewContent(string notificationTitle, string title, string targetUrl)
+        {
+            try { NotificationRepository.NotifyRoles("Content", notificationTitle, title, targetUrl, SessionHelper.GetCurrentUserId(), "Learner", "Expert"); }
+            catch (Exception ex) { DatabaseHelper.LogError("Content notification", ex.Message, ex.StackTrace); }
         }
 
         private void ClearForm()

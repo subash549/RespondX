@@ -44,7 +44,9 @@ namespace RespondX
                     LastName = txtLastName.Text.Trim(),
                     PasswordHash = PasswordHelper.HashPassword(txtPassword.Text.Trim(), out string salt),
                     Salt = salt,
-                    Role = ddlRole.SelectedValue,
+                    // Public registration always creates a Learner. Privileged roles
+                    // are assigned through the admin user management page.
+                    Role = "Learner",
                     IsActive = true,
                     CreatedAt = DateTime.Now
                 };
@@ -70,6 +72,16 @@ namespace RespondX
                             Bio = ""
                         };
                         DatabaseHelper.CreateLearner(learner);
+                    }
+
+                    try
+                    {
+                        NotificationRepository.NotifyRoles("Registration", "New learner registered",
+                            user.FullName + " has created a learner account.", "~/Admin/ManageUsers.aspx", userId, "Admin");
+                    }
+                    catch (Exception notificationError)
+                    {
+                        DatabaseHelper.LogError("Registration notification", notificationError.Message, notificationError.StackTrace);
                     }
 
                     ShowSuccess("Account created successfully! You can now login.");

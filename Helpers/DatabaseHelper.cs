@@ -38,7 +38,7 @@ namespace RespondX.Helpers
                 using (var conn = new SqlConnection(ConnectionString))
                 {
                     var query = @"
-                        SELECT UserID, Username, Email, PasswordHash, Salt, FirstName, LastName, Role, IsActive 
+                        SELECT UserID, Username, Email, PasswordHash, Salt, FirstName, LastName, Role, IsActive, ProfileImage 
                         FROM Users 
                         WHERE Username = @Username OR Email = @Email";
 
@@ -62,7 +62,8 @@ namespace RespondX.Helpers
                                     FirstName = reader["FirstName"].ToString(),
                                     LastName = reader["LastName"].ToString(),
                                     Role = reader["Role"].ToString(),
-                                    IsActive = Convert.ToBoolean(reader["IsActive"])
+                                    IsActive = Convert.ToBoolean(reader["IsActive"]),
+                                    ProfileImage = reader["ProfileImage"] == DBNull.Value ? null : Convert.ToString(reader["ProfileImage"])
                                 };
 
                                 if (PasswordHelper.VerifyPassword(password, user.PasswordHash, user.Salt))
@@ -187,7 +188,7 @@ namespace RespondX.Helpers
                 using (var conn = new SqlConnection(ConnectionString))
                 {
                     var query = @"
-                        SELECT UserID, Username, Email, FirstName, LastName, Role, IsActive, CreatedAt, LastLogin 
+                        SELECT UserID, Username, Email, FirstName, LastName, Role, IsActive, CreatedAt, LastLogin, ProfileImage 
                         FROM Users 
                         WHERE UserID = @UserID";
 
@@ -210,7 +211,8 @@ namespace RespondX.Helpers
                                     Role = reader["Role"].ToString(),
                                     IsActive = Convert.ToBoolean(reader["IsActive"]),
                                     CreatedAt = Convert.ToDateTime(reader["CreatedAt"]),
-                                    LastLogin = reader["LastLogin"] != DBNull.Value ? Convert.ToDateTime(reader["LastLogin"]) : (DateTime?)null
+                                    LastLogin = reader["LastLogin"] != DBNull.Value ? Convert.ToDateTime(reader["LastLogin"]) : (DateTime?)null,
+                                    ProfileImage = reader["ProfileImage"] == DBNull.Value ? null : Convert.ToString(reader["ProfileImage"])
                                 };
                             }
                         }
@@ -224,6 +226,54 @@ namespace RespondX.Helpers
             return null;
         }
 
+        public static void UpdateProfile(int userId, string firstName, string lastName, string email, string profileImage)
+        {
+            using (var conn = new SqlConnection(ConnectionString))
+            using (var cmd = new SqlCommand(@"
+                UPDATE dbo.Users
+                SET FirstName = @FirstName, LastName = @LastName, Email = @Email, ProfileImage = @ProfileImage
+                WHERE UserID = @UserID;", conn))
+            {
+                cmd.Parameters.Add("@UserID", SqlDbType.Int).Value = userId;
+                cmd.Parameters.Add("@FirstName", SqlDbType.NVarChar, 50).Value = firstName;
+                cmd.Parameters.Add("@LastName", SqlDbType.NVarChar, 50).Value = lastName;
+                cmd.Parameters.Add("@Email", SqlDbType.NVarChar, 100).Value = email;
+                cmd.Parameters.Add("@ProfileImage", SqlDbType.NVarChar, 255).Value = (object)profileImage ?? DBNull.Value;
+                conn.Open();
+                if (cmd.ExecuteNonQuery() == 0)
+                    throw new InvalidOperationException("The user account no longer exists.");
+            }
+        }
+
+        public static void ChangePassword(int userId, string currentPassword, string newPassword)
+        {
+            using (var conn = new SqlConnection(ConnectionString))
+            {
+                conn.Open();
+                using (var transaction = conn.BeginTransaction(IsolationLevel.Serializable))
+                using (var cmd = new SqlCommand("SELECT PasswordHash, Salt FROM dbo.Users WITH (UPDLOCK, ROWLOCK) WHERE UserID = @UserID;", conn, transaction))
+                {
+                    cmd.Parameters.Add("@UserID", SqlDbType.Int).Value = userId;
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (!reader.Read() || !PasswordHelper.VerifyPassword(currentPassword, Convert.ToString(reader["PasswordHash"]), Convert.ToString(reader["Salt"])))
+                            throw new InvalidOperationException("Current password is incorrect.");
+                    }
+
+                    string salt;
+                    string hash = PasswordHelper.HashPassword(newPassword, out salt);
+                    using (var update = new SqlCommand("UPDATE dbo.Users SET PasswordHash = @Hash, Salt = @Salt WHERE UserID = @UserID;", conn, transaction))
+                    {
+                        update.Parameters.Add("@UserID", SqlDbType.Int).Value = userId;
+                        update.Parameters.Add("@Hash", SqlDbType.NVarChar, 255).Value = hash;
+                        update.Parameters.Add("@Salt", SqlDbType.NVarChar, 50).Value = salt;
+                        update.ExecuteNonQuery();
+                    }
+                    transaction.Commit();
+                }
+            }
+        }
+
         public static List<User> GetAllUsers()
         {
             var users = new List<User>();
@@ -232,7 +282,7 @@ namespace RespondX.Helpers
                 using (var conn = new SqlConnection(ConnectionString))
                 {
                     var query = @"
-                        SELECT UserID, Username, Email, FirstName, LastName, Role, IsActive, CreatedAt, LastLogin 
+                        SELECT UserID, Username, Email, FirstName, LastName, Role, IsActive, CreatedAt, LastLogin, ProfileImage 
                         FROM Users 
                         ORDER BY CreatedAt DESC";
 
@@ -253,7 +303,8 @@ namespace RespondX.Helpers
                                     Role = reader["Role"].ToString(),
                                     IsActive = Convert.ToBoolean(reader["IsActive"]),
                                     CreatedAt = Convert.ToDateTime(reader["CreatedAt"]),
-                                    LastLogin = reader["LastLogin"] != DBNull.Value ? Convert.ToDateTime(reader["LastLogin"]) : (DateTime?)null
+                                    LastLogin = reader["LastLogin"] != DBNull.Value ? Convert.ToDateTime(reader["LastLogin"]) : (DateTime?)null,
+                                    ProfileImage = reader["ProfileImage"] == DBNull.Value ? null : Convert.ToString(reader["ProfileImage"])
                                 });
                             }
                         }

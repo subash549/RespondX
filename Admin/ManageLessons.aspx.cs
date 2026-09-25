@@ -327,6 +327,8 @@ namespace RespondX.Admin
             }
 
             ShowSuccess(isNew ? "Lesson added successfully." : "Lesson updated successfully.");
+            try { NotificationRepository.NotifyRoles("Content", isNew ? "New lesson available" : "Lesson updated", title, "~/Learner/Modules.aspx", SessionHelper.GetCurrentUserId(), "Learner", "Expert"); }
+            catch (Exception notificationError) { DatabaseHelper.LogError("Lesson notification", notificationError.Message, notificationError.StackTrace); }
             ClearForm();
             LoadLessons();
             ScriptManager.RegisterStartupScript(this, GetType(), "hideLessonModal",

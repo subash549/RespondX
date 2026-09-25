@@ -296,6 +296,8 @@ namespace RespondX.Admin
             }
 
             ShowSuccess(isNew ? "Scenario added. Use Options to add its answers." : "Scenario updated.");
+            try { NotificationRepository.NotifyRoles("Content", isNew ? "New scenario available" : "Scenario updated", title, "~/Learner/Scenarios.aspx", SessionHelper.GetCurrentUserId(), "Learner", "Expert"); }
+            catch (Exception notificationError) { DatabaseHelper.LogError("Scenario notification", notificationError.Message, notificationError.StackTrace); }
             ClearForm();
             LoadScenarios();
             UiHelper.HideModal(this, "modalScenario");

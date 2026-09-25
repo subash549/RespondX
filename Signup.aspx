@@ -123,14 +123,6 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="ddlRole">Role</label>
-                        <asp:DropDownList ID="ddlRole" runat="server" CssClass="form-control">
-                            <asp:ListItem Value="Learner">Learner</asp:ListItem>
-                            <asp:ListItem Value="Expert">Expert</asp:ListItem>
-                        </asp:DropDownList>
-                    </div>
-
-                    <div class="form-group">
                         <div class="terms-check">
                             <asp:CheckBox ID="chkTerms" runat="server" />
                             <label for="chkTerms">I agree to the <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Privacy Policy</a></label>

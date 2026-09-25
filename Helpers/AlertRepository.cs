@@ -9,17 +9,14 @@ namespace RespondX.Helpers
     /// <summary>
     /// Alerts are stored one row per learner so each learner has their own read/acknowledged state.
     /// An alert sent to "all learners" is therefore a group of rows created by one INSERT; the group is
-    /// identified by its creation time, sender, title, type and priority, and represented by its lowest AlertID.
+    /// identified by its creation time and sender, and represented by its lowest AlertID.
     /// </summary>
     public static class AlertRepository
     {
         private const string GroupJoin = @"
             INNER JOIN dbo.Alerts r ON r.AlertID = @AlertID
             WHERE a.CreatedAt = r.CreatedAt
-              AND ISNULL(a.AdminID, 0) = ISNULL(r.AdminID, 0)
-              AND a.Title = r.Title
-              AND a.AlertType = r.AlertType
-              AND a.Priority = r.Priority";
+              AND ISNULL(a.AdminID, 0) = ISNULL(r.AdminID, 0)";
 
         public static readonly string[] AlertTypes = { "Emergency", "Reminder", "Notification", "System" };
 
@@ -35,9 +32,9 @@ namespace RespondX.Helpers
                        u.FirstName + N' ' + u.LastName AS LearnerName
                 FROM (
                     SELECT MIN(AlertID) AS AlertID, COUNT(*) AS RecipientCount,
-                           SUM(CASE WHEN IsRead = 1 THEN 1 ELSE 0 END) AS ReadCount
+                       SUM(CASE WHEN IsRead = 1 THEN 1 ELSE 0 END) AS ReadCount
                     FROM dbo.Alerts
-                    GROUP BY CreatedAt, ISNULL(AdminID, 0), Title, AlertType, Priority
+                    GROUP BY CreatedAt, ISNULL(AdminID, 0)
                 ) g
                 INNER JOIN dbo.Alerts a ON a.AlertID = g.AlertID
                 LEFT JOIN dbo.Users u ON u.UserID = a.LearnerID
@@ -59,7 +56,7 @@ namespace RespondX.Helpers
                         item.ReadCount = Convert.ToInt32(reader["ReadCount"]);
                         item.Target = item.RecipientCount == 1 && reader["LearnerName"] != DBNull.Value
                             ? Convert.ToString(reader["LearnerName"])
-                            : item.RecipientCount + " learners";
+                            : item.RecipientCount + " recipients";
                         alerts.Add(item);
                     }
                 }
@@ -71,8 +68,14 @@ namespace RespondX.Helpers
         {
             using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
             using (var cmd = new SqlCommand(@"
-                SELECT AlertID, Title, Message, AlertType, Priority, CreatedAt, ExpiresAt, IsRead, IsAcknowledged
-                FROM dbo.Alerts WHERE AlertID = @AlertID;", conn))
+                SELECT a.AlertID, a.Title, a.Message, a.AlertType, a.Priority, a.CreatedAt, a.ExpiresAt, a.IsRead, a.IsAcknowledged
+                FROM dbo.Alerts a
+                INNER JOIN (
+                    SELECT MIN(AlertID) AS AlertID
+                    FROM dbo.Alerts
+                    WHERE CreatedAt = (SELECT CreatedAt FROM dbo.Alerts WHERE AlertID = @AlertID)
+                      AND ISNULL(AdminID, 0) = (SELECT ISNULL(AdminID, 0) FROM dbo.Alerts WHERE AlertID = @AlertID)
+                ) g ON g.AlertID = a.AlertID;", conn))
             {
                 cmd.Parameters.Add("@AlertID", SqlDbType.Int).Value = alertId;
                 conn.Open();
@@ -102,29 +105,48 @@ namespace RespondX.Helpers
             }
         }
 
-        public static void UpdateAlertGroup(int alertId, string title, string message, string alertType, int priority, DateTime? expiresAt, bool changeExpiry)
+        public static int? GetAlertRecipient(int alertId)
+        {
+            using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
+            using (var cmd = new SqlCommand("SELECT LearnerID FROM dbo.Alerts WHERE AlertID = @AlertID;", conn))
+            {
+                cmd.Parameters.Add("@AlertID", SqlDbType.Int).Value = alertId;
+                conn.Open();
+                object value = cmd.ExecuteScalar();
+                return value == null || value == DBNull.Value ? (int?)null : Convert.ToInt32(value);
+            }
+        }
+
+        public static int UpdateAlertGroup(int alertId, string title, string message, string alertType,
+            int priority, DateTime? expiresAt, bool changeExpiry, int? learnerId)
         {
             using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
             using (var cmd = new SqlCommand(@"
                 UPDATE a
                 SET Title = @Title, Message = @Message, AlertType = @AlertType, Priority = @Priority,
                     ExpiresAt = CASE WHEN @ChangeExpiry = 1 THEN @ExpiresAt ELSE a.ExpiresAt END
-                FROM dbo.Alerts a" + GroupJoin + ";", conn))
+                FROM dbo.Alerts a
+                INNER JOIN dbo.Alerts seed ON seed.AlertID = @AlertID
+                WHERE a.CreatedAt = seed.CreatedAt
+                  AND ISNULL(a.AdminID, 0) = ISNULL(seed.AdminID, 0)
+                  AND (@LearnerID IS NULL OR a.LearnerID = @LearnerID);", conn))
             {
                 AddContentParameters(cmd, title, message, alertType, priority, expiresAt);
                 cmd.Parameters.Add("@ChangeExpiry", SqlDbType.Bit).Value = changeExpiry;
                 cmd.Parameters.Add("@AlertID", SqlDbType.Int).Value = alertId;
+                cmd.Parameters.Add("@LearnerID", SqlDbType.Int).Value = learnerId.HasValue ? (object)learnerId.Value : DBNull.Value;
                 conn.Open();
-                cmd.ExecuteNonQuery();
+                return cmd.ExecuteNonQuery();
             }
         }
 
         public static void DeleteAlertGroup(int alertId)
         {
             using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
-            using (var cmd = new SqlCommand("DELETE a FROM dbo.Alerts a" + GroupJoin + ";", conn))
+            using (var cmd = new SqlCommand("DELETE a FROM dbo.Alerts a" + GroupJoin + " AND (@LearnerID IS NULL OR a.LearnerID = @LearnerID);", conn))
             {
                 cmd.Parameters.Add("@AlertID", SqlDbType.Int).Value = alertId;
+                cmd.Parameters.Add("@LearnerID", SqlDbType.Int).Value = DBNull.Value;
                 conn.Open();
                 cmd.ExecuteNonQuery();
             }
@@ -164,7 +186,8 @@ namespace RespondX.Helpers
             using (var cmd = new SqlCommand(@"
                 SELECT TOP (@Top) AlertID, Title, Message, AlertType, Priority, CreatedAt, ExpiresAt, IsRead, IsAcknowledged
                 FROM dbo.Alerts
-                WHERE LearnerID = @LearnerID AND (ExpiresAt IS NULL OR ExpiresAt > GETDATE())
+                WHERE LearnerID = @LearnerID
+                  AND (ExpiresAt IS NULL OR ExpiresAt > GETDATE())
                 ORDER BY IsRead, Priority DESC, CreatedAt DESC;", conn))
             {
                 cmd.Parameters.Add("@Top", SqlDbType.Int).Value = top ?? int.MaxValue;
@@ -186,13 +209,13 @@ namespace RespondX.Helpers
             switch (action)
             {
                 case "Read":
-                    sql = "UPDATE dbo.Alerts SET IsRead = 1 WHERE LearnerID = @LearnerID AND (@AlertID IS NULL OR AlertID = @AlertID);";
+                    sql = "UPDATE dbo.Alerts SET IsRead = 1 WHERE LearnerID = @LearnerID AND (ExpiresAt IS NULL OR ExpiresAt > GETDATE()) AND (@AlertID IS NULL OR AlertID = @AlertID);";
                     break;
                 case "Acknowledge":
-                    sql = "UPDATE dbo.Alerts SET IsRead = 1, IsAcknowledged = 1 WHERE LearnerID = @LearnerID AND (@AlertID IS NULL OR AlertID = @AlertID);";
+                    sql = "UPDATE dbo.Alerts SET IsRead = 1, IsAcknowledged = 1 WHERE LearnerID = @LearnerID AND (ExpiresAt IS NULL OR ExpiresAt > GETDATE()) AND (@AlertID IS NULL OR AlertID = @AlertID);";
                     break;
                 case "Dismiss":
-                    sql = "DELETE FROM dbo.Alerts WHERE LearnerID = @LearnerID AND (@AlertID IS NULL OR AlertID = @AlertID);";
+                    sql = "DELETE FROM dbo.Alerts WHERE LearnerID = @LearnerID AND (ExpiresAt IS NULL OR ExpiresAt > GETDATE()) AND (@AlertID IS NULL OR AlertID = @AlertID);";
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(action));

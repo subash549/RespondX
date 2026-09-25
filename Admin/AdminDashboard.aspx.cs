@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
 using System.Web.UI;
 using RespondX.Helpers;
 using RespondX.Models;
@@ -28,10 +30,25 @@ namespace RespondX.Admin
                 lblAdminName.Text = user.FullName;
             }
 
-            lblTotalUsers.Text = "156";
-            lblTotalModules.Text = "12";
-            lblTotalQuizzes.Text = "24";
-            lblTotalCertificates.Text = "67";
+            using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
+            using (var cmd = new SqlCommand(@"
+                SELECT (SELECT COUNT(*) FROM dbo.Users),
+                       (SELECT COUNT(*) FROM dbo.Modules),
+                       (SELECT COUNT(*) FROM dbo.Quizzes),
+                       (SELECT COUNT(*) FROM dbo.Certificates);", conn))
+            {
+                conn.Open();
+                using (var reader = cmd.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        lblTotalUsers.Text = Convert.ToInt32(reader[0]).ToString();
+                        lblTotalModules.Text = Convert.ToInt32(reader[1]).ToString();
+                        lblTotalQuizzes.Text = Convert.ToInt32(reader[2]).ToString();
+                        lblTotalCertificates.Text = Convert.ToInt32(reader[3]).ToString();
+                    }
+                }
+            }
 
             LoadRecentUsers();
             LoadRecentActivity();
@@ -40,12 +57,33 @@ namespace RespondX.Admin
 
         private void LoadRecentUsers()
         {
-            var users = new List<UserItem>
+            var users = new List<UserItem>();
+            using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
+            using (var cmd = new SqlCommand(@"SELECT TOP (5) UserID, Username, Email, FirstName, LastName, Role, IsActive, CreatedAt
+                FROM dbo.Users ORDER BY CreatedAt DESC, UserID DESC;", conn))
             {
-                new UserItem { FullName = "John Smith", Email = "john@email.com", IsActive = true, Role = "Learner" },
-                new UserItem { FullName = "Mary Johnson", Email = "mary@email.com", IsActive = true, Role = "Expert" },
-                new UserItem { FullName = "Robert Wilson", Email = "robert@email.com", IsActive = false, Role = "Learner" }
-            };
+                conn.Open();
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string first = Convert.ToString(reader["FirstName"]);
+                        string last = Convert.ToString(reader["LastName"]);
+                        users.Add(new UserItem
+                        {
+                            UserID = Convert.ToInt32(reader["UserID"]),
+                            Username = Convert.ToString(reader["Username"]),
+                            Email = Convert.ToString(reader["Email"]),
+                            FirstName = first,
+                            LastName = last,
+                            FullName = (first + " " + last).Trim(),
+                            Role = Convert.ToString(reader["Role"]),
+                            IsActive = Convert.ToBoolean(reader["IsActive"]),
+                            CreatedAt = Convert.ToDateTime(reader["CreatedAt"])
+                        });
+                    }
+                }
+            }
 
             rptRecentUsers.DataSource = users;
             rptRecentUsers.DataBind();
@@ -53,12 +91,41 @@ namespace RespondX.Admin
 
         private void LoadRecentActivity()
         {
-            var activities = new List<ActivityItem>
+            var activities = new List<ActivityItem>();
+            using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
+            using (var cmd = new SqlCommand(@"
+                SELECT TOP (8) ActivityTitle AS Title, ActivityDescription AS Description, ActivityAt
+                FROM (
+                    SELECT N'User Registration' AS ActivityTitle,
+                           FirstName + N' ' + LastName + N' registered as ' + LOWER(Role) AS ActivityDescription,
+                           CreatedAt AS ActivityAt, UserID AS SortID
+                    FROM dbo.Users
+                    UNION ALL
+                    SELECT N'Module Created', N'Module added: ' + Title, CreatedAt, ModuleID FROM dbo.Modules
+                    UNION ALL
+                    SELECT N'Quiz Created', N'Quiz added: ' + Title, CreatedAt, QuizID FROM dbo.Quizzes
+                    UNION ALL
+                    SELECT N'Lesson Created', N'Lesson added: ' + Title, CreatedAt, LessonID FROM dbo.Lessons
+                    UNION ALL
+                    SELECT N'Scenario Created', N'Scenario added: ' + Title, CreatedAt, ScenarioID FROM dbo.Scenarios
+                ) activity
+                ORDER BY ActivityAt DESC, SortID DESC;", conn))
             {
-                new ActivityItem { Title = "User Registration", Description = "Jane Doe registered as a learner", TimeAgo = "2 hours ago" },
-                new ActivityItem { Title = "Module Created", Description = "Advanced First Aid module was created", TimeAgo = "5 hours ago" },
-                new ActivityItem { Title = "Quiz Completed", Description = "John Smith completed CPR quiz with 92%", TimeAgo = "1 day ago" }
-            };
+                conn.Open();
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        DateTime when = Convert.ToDateTime(reader["ActivityAt"]);
+                        activities.Add(new ActivityItem
+                        {
+                            Title = Convert.ToString(reader["Title"]),
+                            Description = Convert.ToString(reader["Description"]),
+                            TimeAgo = RespondX.Helpers.UiHelper.TimeAgo(when)
+                        });
+                    }
+                }
+            }
 
             rptRecentActivity.DataSource = activities;
             rptRecentActivity.DataBind();
@@ -66,13 +133,7 @@ namespace RespondX.Admin
 
         private void LoadAlerts()
         {
-            var alerts = new List<AlertItem>
-            {
-                new AlertItem { Title = "System Maintenance", Message = "Scheduled maintenance this weekend", PriorityClass = "medium", TimeAgo = "3 hours ago" },
-                new AlertItem { Title = "User Report", Message = "3 users have been inactive for over 30 days", PriorityClass = "high", TimeAgo = "1 day ago" }
-            };
-
-            rptAlerts.DataSource = alerts;
+            rptAlerts.DataSource = AlertRepository.GetAlertGroups(null, "Active");
             rptAlerts.DataBind();
         }
 

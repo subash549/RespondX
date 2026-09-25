@@ -23,10 +23,10 @@
                     <div class="alert-item <%# Eval("PriorityClass") %>" id="alert_<%# Eval("AlertID") %>">
                         <div class="alert-content">
                             <div class="alert-header">
-                                <h4><%# Eval("Title") %></h4>
-                                <span class="badge <%# Eval("TypeBadge") %>"><%# Eval("AlertTypeDisplay") %></span>
+                                <h4><%# Server.HtmlEncode(Convert.ToString(Eval("Title"))) %></h4>
+                                <span class="badge <%# Eval("TypeBadge") %>"><%# Server.HtmlEncode(Convert.ToString(Eval("AlertTypeDisplay"))) %></span>
                             </div>
-                            <p><%# Eval("Message") %></p>
+                            <p><%# Server.HtmlEncode(Convert.ToString(Eval("Message"))) %></p>
                             <div class="alert-footer">
                                 <span class="alert-time"><i class="fas fa-clock"></i> <%# Eval("TimeAgo") %></span>
                                 <span class="alert-priority">Priority: <%# Eval("PriorityLevel") %></span>

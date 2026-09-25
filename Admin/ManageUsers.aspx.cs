@@ -359,7 +359,15 @@ namespace RespondX.Admin
             catch (Exception ex)
             {
                 DatabaseHelper.LogError("Save user", ex.Message, ex.StackTrace);
-                ShowFormError("Unable to save this user. Please try again.");
+                var sqlException = ex as SqlException;
+                if (sqlException != null && (sqlException.Number == 2601 || sqlException.Number == 2627))
+                {
+                    ShowFormError("That username or email is already registered.");
+                }
+                else
+                {
+                    ShowFormError("Unable to save this user. Please check the account details and try again.");
+                }
                 return;
             }
 

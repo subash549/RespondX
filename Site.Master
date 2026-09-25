@@ -26,6 +26,7 @@
         <nav class="navbar" aria-label="Main navigation">
             <div class="container">
                 <a runat="server" href="~/Default.aspx" class="navbar-brand">
+                    <asp:Image ID="imgNavProfile" runat="server" Visible="false" AlternateText="Profile" CssClass="brand-logo" Width="28" Height="28" />
                     <img runat="server" src="~/Content/Images/logo.svg" alt="" class="brand-logo" width="28" height="28" /> RespondX
                 </a>
                 <button type="button" class="navbar-toggler" id="navbarToggler" aria-label="Toggle navigation" aria-expanded="false" aria-controls="navbarLinks">
@@ -55,13 +56,14 @@
                             <li><a runat="server" href="~/Learner/Certificates.aspx">Certificates</a></li>
                             <li><a runat="server" href="~/Learner/Scenarios.aspx">Scenarios</a></li>
                             <li><a runat="server" href="~/Learner/MyProgress.aspx">Progress</a></li>
-                            <li><a runat="server" href="~/Learner/Profile.aspx">Profile</a></li>
+                            <li><a runat="server" href="~/Profile.aspx">Profile</a></li>
                             <li><a runat="server" href="~/Logout.aspx" class="nav-logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                         </asp:PlaceHolder>
 
                         <!-- Admin Links -->
                         <asp:PlaceHolder ID="phAdminLinks" runat="server" Visible="false">
                             <li><a runat="server" href="~/Admin/AdminDashboard.aspx">Dashboard</a></li>
+                            <li><a runat="server" href="~/Profile.aspx">Profile</a></li>
                             <li><a runat="server" href="~/Admin/ManageUsers.aspx">Users</a></li>
                             <li><a runat="server" href="~/Admin/ManageCategories.aspx">Categories</a></li>
                             <li><a runat="server" href="~/Admin/ManageModules.aspx">Modules</a></li>
@@ -75,6 +77,7 @@
                         <!-- Expert Links -->
                         <asp:PlaceHolder ID="phExpertLinks" runat="server" Visible="false">
                             <li><a runat="server" href="~/Expert/ExpertDashboard.aspx">Dashboard</a></li>
+                            <li><a runat="server" href="~/Profile.aspx">Profile</a></li>
                             <li><a runat="server" href="~/Expert/PendingReviews.aspx">Reviews</a></li>
                             <li><a runat="server" href="~/Expert/ReviewHistory.aspx">History</a></li>
                             <li><a runat="server" href="~/Expert/ManageAssignments.aspx">Assignments</a></li>
@@ -83,6 +86,12 @@
                         </asp:PlaceHolder>
                     </ul>
                 </div>
+                <asp:Panel ID="pnlNotificationBell" runat="server" CssClass="rx-notification-bell" Visible="false">
+                    <a runat="server" href="~/Notifications.aspx" class="rx-notification-link" aria-label="Notifications">
+                        <i class="fas fa-bell"></i>
+                        <asp:Label ID="lblNotificationCount" runat="server" CssClass="rx-notification-count" Visible="false" />
+                    </a>
+                </asp:Panel>
             </div>
         </nav>
 

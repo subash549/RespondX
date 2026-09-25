@@ -277,6 +277,8 @@ namespace RespondX.Admin
                 }
 
                 ShowSuccess(isNew ? "Quiz added successfully." : "Quiz updated successfully.");
+                try { NotificationRepository.NotifyRoles("Content", isNew ? "New quiz available" : "Quiz updated", title, "~/Learner/Quizzes.aspx", SessionHelper.GetCurrentUserId(), "Learner", "Expert"); }
+                catch (Exception notificationError) { DatabaseHelper.LogError("Quiz notification", notificationError.Message, notificationError.StackTrace); }
                 ClearForm();
                 LoadQuizzes();
                 ScriptManager.RegisterStartupScript(this, GetType(), "hideModal", "$('#modalQuiz').modal('hide');", true);

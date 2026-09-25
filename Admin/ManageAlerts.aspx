@@ -50,14 +50,14 @@
                     <div class="alert-item <%# Eval("PriorityClass") %>" id="alert_<%# Eval("AlertID") %>">
                         <div class="alert-content">
                             <div class="alert-header">
-                                <h4><%# Eval("Title") %></h4>
-                                <span class="badge <%# Eval("TypeBadge") %>"><%# Eval("AlertTypeDisplay") %></span>
+                                <h4><%# Server.HtmlEncode(Convert.ToString(Eval("Title"))) %></h4>
+                                <span class="badge <%# Eval("TypeBadge") %>"><%# Server.HtmlEncode(Convert.ToString(Eval("AlertTypeDisplay"))) %></span>
                             </div>
-                            <p><%# Eval("Message") %></p>
+                            <p><%# Server.HtmlEncode(Convert.ToString(Eval("Message"))) %></p>
                             <div class="alert-footer">
-                                <span><i class="fas fa-user"></i> To: <%# Eval("Target") %></span>
+                                <span><i class="fas fa-user"></i> To: <%# Server.HtmlEncode(Convert.ToString(Eval("Target"))) %></span>
                                 <span><i class="fas fa-clock"></i> <%# Eval("CreatedAt", "{0:MMM dd, yyyy HH:mm}") %></span>
-                                <span class="alert-priority">Priority: <%# Eval("PriorityLevel") %></span>
+                                <span class="alert-priority">Priority: <%# Server.HtmlEncode(Convert.ToString(Eval("PriorityLevel"))) %></span>
                                 <span class="badge <%# Convert.ToBoolean(Eval("IsActive")) ? "badge-success" : "badge-secondary" %>">
                                     <%# Convert.ToBoolean(Eval("IsActive")) ? "Active" : "Expired" %>
                                 </span>
@@ -75,18 +75,18 @@
             </asp:Repeater>
         </div>
 
-        <div class="modal fade" id="modalAlert" tabindex="-1">
+        <div class="modal fade" id="modalAlert" tabindex="-1" aria-hidden="true" role="dialog" aria-labelledby="alertModalTitle">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title"><asp:Label ID="lblModalTitle" runat="server" Text="Create Alert"></asp:Label></h5>
+                        <h5 class="modal-title" id="alertModalTitle"><asp:Label ID="lblModalTitle" runat="server" Text="Create Alert"></asp:Label></h5>
                         <button type="button" class="close" data-dismiss="modal">&times;</button>
                     </div>
                     <div class="modal-body">
                         <asp:HiddenField ID="hfAlertID" runat="server" />
                         <div class="form-group">
                             <label>Title *</label>
-                            <asp:TextBox ID="txtTitle" runat="server" CssClass="form-control" />
+                            <asp:TextBox ID="txtTitle" runat="server" CssClass="form-control" MaxLength="100" />
                         </div>
                         <div class="form-group">
                             <label>Message *</label>
@@ -114,10 +114,8 @@
                         <div class="form-group">
                             <label>Target Audience</label>
                             <asp:DropDownList ID="ddlTarget" runat="server" CssClass="form-control">
-                                <asp:ListItem Value="All">All Users</asp:ListItem>
-                                <asp:ListItem Value="Learners">Learners Only</asp:ListItem>
-                                <asp:ListItem Value="Experts">Experts Only</asp:ListItem>
-                                <asp:ListItem Value="Admins">Admins Only</asp:ListItem>
+                                <asp:ListItem Value="All">All active learners</asp:ListItem>
+                                <asp:ListItem Value="Learners">Choose a learner</asp:ListItem>
                             </asp:DropDownList>
                         </div>
                         <div class="form-group">
@@ -147,6 +145,7 @@
         .alerts-list {
             display: grid;
             gap: 15px;
+            margin-bottom: 32px;
         }
         .alert-item {
             background: white;
@@ -175,10 +174,13 @@
         .alert-header h4 {
             margin: 0;
             color: #2d3748;
+            overflow-wrap: anywhere;
         }
         .alert-content p {
             margin: 10px 0;
             color: #4a5568;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
         }
         .alert-footer {
             display: flex;
@@ -217,6 +219,12 @@
             padding: 8px 12px;
             border: 2px solid #e2e8f0;
             border-radius: 5px;
+        }
+        .filter-group select:focus,
+        .filter-group input:focus,
+        .modal-body .form-control:focus {
+            outline: 3px solid rgba(37, 84, 199, 0.16);
+            border-color: #2554c7;
         }
         @media (max-width: 768px) {
             .alert-item {

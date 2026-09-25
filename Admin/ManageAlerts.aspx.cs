@@ -1,88 +1,66 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using RespondX.Helpers;
-using RespondX.Models;
 
 namespace RespondX.Admin
 {
     public partial class ManageAlerts : Page
     {
+        protected override void OnInit(EventArgs e)
+        {
+            BindRecipients();
+            base.OnInit(e);
+        }
+
         protected void Page_Load(object sender, EventArgs e)
         {
             if (!AuthorizationHelper.RequireRole("Admin"))
                 return;
 
             if (!IsPostBack)
-            {
                 LoadAlerts();
-            }
+        }
+
+        private void BindRecipients()
+        {
+            string selectedValue = ddlTarget.SelectedValue;
+            ddlTarget.Items.Clear();
+            ddlTarget.Items.Add(new ListItem("All active learners", "All"));
+            ddlTarget.Items.Add(new ListItem("Select a learner", ""));
+            foreach (var learner in AlertRepository.GetActiveLearners())
+                ddlTarget.Items.Add(new ListItem(learner.Text, learner.Value));
+
+            if (!string.IsNullOrEmpty(selectedValue) && ddlTarget.Items.FindByValue(selectedValue) != null)
+                ddlTarget.SelectedValue = selectedValue;
         }
 
         private void LoadAlerts()
         {
-            var alerts = GetAlerts();
-
-            var type = ddlType.SelectedValue;
-            if (type != "All")
+            try
             {
-                alerts = alerts.FindAll(a => a.AlertType == type);
+                rptAlerts.DataSource = AlertRepository.GetAlertGroups(
+                    ddlType.SelectedValue == "All" ? null : ddlType.SelectedValue,
+                    ddlStatus.SelectedValue == "All" ? null : ddlStatus.SelectedValue);
+                rptAlerts.DataBind();
             }
-
-            var status = ddlStatus.SelectedValue;
-            if (status != "All")
+            catch (Exception ex)
             {
-                bool isActive = status == "Active";
-                alerts = alerts.FindAll(a => a.IsActive == isActive);
+                DatabaseHelper.LogError("Load alert groups", ex.Message, ex.StackTrace);
+                rptAlerts.DataSource = new object[0];
+                rptAlerts.DataBind();
+                ShowError("Alerts could not be loaded. Check the database connection and confirm the alerts schema is applied.");
             }
-
-            rptAlerts.DataSource = alerts;
-            rptAlerts.DataBind();
-        }
-
-        private List<AlertItem> GetAlerts()
-        {
-            return new List<AlertItem>
-            {
-                new AlertItem
-                {
-                    AlertID = 1,
-                    Title = "System Maintenance",
-                    Message = "Scheduled maintenance this weekend. System may be unavailable.",
-                    AlertType = "System",
-                    AlertTypeDisplay = "System",
-                    TypeBadge = "badge-secondary",
-                    Priority = 3,
-                    PriorityLevel = "Medium",
-                    PriorityClass = "medium",
-                    Target = "All Users",
-                    IsActive = true,
-                    CreatedAt = DateTime.Now.AddDays(-1),
-                    TimeAgo = "1 day ago"
-                },
-                new AlertItem
-                {
-                    AlertID = 2,
-                    Title = "CPR Certification Deadline",
-                    Message = "Several learners have certifications expiring soon.",
-                    AlertType = "Reminder",
-                    AlertTypeDisplay = "Reminder",
-                    TypeBadge = "badge-warning",
-                    Priority = 4,
-                    PriorityLevel = "High",
-                    PriorityClass = "high",
-                    Target = "Learners",
-                    IsActive = true,
-                    CreatedAt = DateTime.Now.AddDays(-3),
-                    TimeAgo = "3 days ago"
-                }
-            };
         }
 
         protected void rptAlerts_ItemCommand(object source, RepeaterCommandEventArgs e)
         {
-            int alertId = int.Parse(e.CommandArgument.ToString());
+            int alertId;
+            if (!int.TryParse(Convert.ToString(e.CommandArgument), out alertId) || alertId <= 0)
+            {
+                ShowError("Select a valid alert.");
+                return;
+            }
 
             switch (e.CommandName)
             {
@@ -97,67 +75,170 @@ namespace RespondX.Admin
 
         private void EditAlert(int alertId)
         {
-            var alert = GetAlertById(alertId);
-            if (alert != null)
+            try
             {
+                var alert = AlertRepository.GetAlert(alertId);
+                if (alert == null)
+                {
+                    ShowError("That alert no longer exists.");
+                    LoadAlerts();
+                    return;
+                }
+
                 lblModalTitle.Text = "Edit Alert";
                 hfAlertID.Value = alertId.ToString();
                 txtTitle.Text = alert.Title;
                 txtMessage.Text = alert.Message;
                 ddlAlertType.SelectedValue = alert.AlertType;
                 ddlPriority.SelectedValue = alert.Priority.ToString();
-                ddlTarget.SelectedValue = alert.Target.Replace(" ", "");
-
-                ScriptManager.RegisterStartupScript(this, GetType(), "showModal", "$('#modalAlert').modal('show');", true);
+                int? recipientId = AlertRepository.GetAlertRecipient(alertId);
+                ddlTarget.SelectedValue = recipientId.HasValue ? recipientId.Value.ToString() : "All";
+                ddlExpires.SelectedValue = ExpirySelection(alert.ExpiresAt);
+                ShowModal();
+            }
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Load alert for editing", ex.Message, ex.StackTrace);
+                ShowError("The alert could not be loaded for editing.");
             }
         }
 
         private void DeleteAlert(int alertId)
         {
-            ShowSuccess("Alert deleted successfully");
-            LoadAlerts();
+            try
+            {
+                AlertRepository.DeleteAlertGroup(alertId);
+                ShowSuccess("Alert deleted successfully.");
+                LoadAlerts();
+            }
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Delete alert group", ex.Message, ex.StackTrace);
+                ShowError("The alert could not be deleted.");
+            }
         }
 
         protected void btnSaveAlert_Click(object sender, EventArgs e)
         {
             int alertId;
-            bool isNew = !int.TryParse(hfAlertID.Value, out alertId) || alertId == 0;
+            bool isNew = !int.TryParse(hfAlertID.Value, out alertId) || alertId <= 0;
+            string title = txtTitle.Text.Trim();
+            string message = txtMessage.Text.Trim();
+            int priority;
 
-            if (string.IsNullOrEmpty(txtTitle.Text) || string.IsNullOrEmpty(txtMessage.Text))
+            if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(message) || title.Length > 100 || message.Length > 4000)
             {
-                ShowError("Title and message are required.");
+                ShowError("Enter a title (up to 100 characters) and message (up to 4,000 characters).");
+                ShowModal();
+                return;
+            }
+            if (!int.TryParse(ddlPriority.SelectedValue, out priority) || priority < 1 || priority > 5)
+            {
+                ShowError("Select a valid priority.");
+                ShowModal();
+                return;
+            }
+            if (Array.IndexOf(AlertRepository.AlertTypes, ddlAlertType.SelectedValue) < 0)
+            {
+                ShowError("Select a valid alert type.");
+                ShowModal();
                 return;
             }
 
-            ShowSuccess(isNew ? "Alert created successfully" : "Alert updated successfully");
-            ClearForm();
-            LoadAlerts();
+            int recipientId = 0;
+            DateTime? expiry = CalculateExpiry(ddlExpires.SelectedValue);
+            try
+            {
+                if (isNew)
+                {
+                    if (string.IsNullOrEmpty(ddlTarget.SelectedValue) ||
+                        (ddlTarget.SelectedValue != "All" && !int.TryParse(ddlTarget.SelectedValue, out recipientId)))
+                    {
+                        ShowError("Select a valid recipient.");
+                        ShowModal();
+                        return;
+                    }
 
-            ScriptManager.RegisterStartupScript(this, GetType(), "hideModal", "$('#modalAlert').modal('hide');", true);
-        }
+                    int recipients = AlertRepository.CreateAlert(title, message, ddlAlertType.SelectedValue,
+                        priority, expiry, recipientId == 0 ? (int?)null : recipientId,
+                        SessionHelper.GetCurrentUserId() ?? 0);
+                    if (recipients == 0)
+                    {
+                        ShowError("No active learner matched the selected audience.");
+                        ShowModal();
+                        return;
+                    }
+                    ShowSuccess("Alert sent to " + recipients + (recipients == 1 ? " learner." : " learners."));
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(ddlTarget.SelectedValue) ||
+                        (ddlTarget.SelectedValue != "All" && !int.TryParse(ddlTarget.SelectedValue, out recipientId)))
+                    {
+                        ShowError("Select a valid recipient.");
+                        ShowModal();
+                        return;
+                    }
+                    int updated = AlertRepository.UpdateAlertGroup(alertId, title, message,
+                        ddlAlertType.SelectedValue, priority, expiry, true, recipientId == 0 ? (int?)null : recipientId);
+                    if (updated == 0)
+                    {
+                        ShowError("That alert no longer exists. Refresh the list and try again.");
+                        LoadAlerts();
+                        return;
+                    }
+                    ShowSuccess("Alert updated for " + updated + (updated == 1 ? " recipient." : " recipients."));
+                }
 
-        private AlertItem GetAlertById(int alertId)
-        {
-            var alerts = GetAlerts();
-            return alerts.Find(a => a.AlertID == alertId);
+                ClearForm();
+                LoadAlerts();
+                ScriptManager.RegisterStartupScript(this, GetType(), "hideAlertModal", "$('#modalAlert').modal('hide');", true);
+            }
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Save alert", ex.Message, ex.StackTrace);
+                ShowError("The alert could not be saved. Check the database connection and try again.");
+                ShowModal();
+            }
         }
 
         private void ClearForm()
         {
-            hfAlertID.Value = "";
-            txtTitle.Text = "";
-            txtMessage.Text = "";
+            hfAlertID.Value = string.Empty;
+            txtTitle.Text = string.Empty;
+            txtMessage.Text = string.Empty;
             ddlAlertType.SelectedIndex = 0;
-            ddlPriority.SelectedIndex = 2;
-            ddlTarget.SelectedIndex = 0;
-            ddlExpires.SelectedIndex = 0;
+            ddlPriority.SelectedValue = "3";
+            ddlTarget.SelectedValue = "All";
+            ddlExpires.SelectedValue = "0";
             lblModalTitle.Text = "Create Alert";
         }
 
         protected void btnAddAlert_Click(object sender, EventArgs e)
         {
             ClearForm();
-            ScriptManager.RegisterStartupScript(this, GetType(), "showModal", "$('#modalAlert').modal('show');", true);
+            ShowModal();
+        }
+
+        private void ShowModal()
+        {
+            ScriptManager.RegisterStartupScript(this, GetType(), "showAlertModal", "$('#modalAlert').modal('show');", true);
+        }
+
+        private static DateTime? CalculateExpiry(string daysValue)
+        {
+            int days;
+            return int.TryParse(daysValue, out days) && days > 0 ? DateTime.Now.AddDays(days) : (DateTime?)null;
+        }
+
+        private static string ExpirySelection(DateTime? expiresAt)
+        {
+            if (!expiresAt.HasValue) return "0";
+            int remainingDays = (int)Math.Ceiling((expiresAt.Value - DateTime.Now).TotalDays);
+            if (remainingDays <= 1) return "1";
+            if (remainingDays <= 7) return "7";
+            if (remainingDays <= 30) return "30";
+            return "90";
         }
 
         protected void ddlType_SelectedIndexChanged(object sender, EventArgs e)
@@ -173,14 +254,14 @@ namespace RespondX.Admin
         private void ShowSuccess(string message)
         {
             pnlSuccess.Visible = true;
-            lblSuccess.Text = message;
+            lblSuccess.Text = Server.HtmlEncode(message);
             pnlError.Visible = false;
         }
 
         private void ShowError(string message)
         {
             pnlError.Visible = true;
-            lblError.Text = message;
+            lblError.Text = Server.HtmlEncode(message);
             pnlSuccess.Visible = false;
         }
     }

@@ -33,6 +33,11 @@ BEGIN
 END;
 GO
 
+/* Add the profile image column to databases created before profile photos were supported. */
+IF COL_LENGTH(N'dbo.Users', N'ProfileImage') IS NULL
+    ALTER TABLE dbo.Users ADD ProfileImage NVARCHAR(255) NULL;
+GO
+
 /* Development administrator account: username admin, password Admin@123.
    Change this password immediately after the first login. Run this schema on
    the same database configured for the deployed website. */
@@ -396,6 +401,32 @@ BEGIN
         CONSTRAINT CK_Alerts_Priority CHECK (Priority BETWEEN 1 AND 5)
     );
 END;
+GO
+
+/* General in-app notifications, addressed to all users of a role. */
+IF OBJECT_ID(N'dbo.Notifications', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Notifications
+    (
+        NotificationID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Notifications PRIMARY KEY,
+        RecipientUserID INT NOT NULL,
+        ActorUserID INT NULL,
+        NotificationType NVARCHAR(30) NOT NULL,
+        Title NVARCHAR(150) NOT NULL,
+        Message NVARCHAR(500) NOT NULL,
+        TargetUrl NVARCHAR(255) NULL,
+        CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Notifications_CreatedAt DEFAULT (GETDATE()),
+        ReadAt DATETIME2(0) NULL,
+        CONSTRAINT FK_Notifications_Recipient FOREIGN KEY (RecipientUserID) REFERENCES dbo.Users(UserID),
+        CONSTRAINT FK_Notifications_Actor FOREIGN KEY (ActorUserID) REFERENCES dbo.Users(UserID)
+    );
+    CREATE INDEX IX_Notifications_Recipient_Unread ON dbo.Notifications(RecipientUserID, ReadAt, CreatedAt DESC);
+END;
+GO
+
+IF OBJECT_ID(N'dbo.Notifications', N'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Notifications_Recipient_Unread' AND object_id = OBJECT_ID(N'dbo.Notifications'))
+    CREATE INDEX IX_Notifications_Recipient_Unread ON dbo.Notifications(RecipientUserID, ReadAt, CreatedAt DESC);
 GO
 
 /* ContentType/ContentID is polymorphic (Module, Lesson, Quiz, or Scenario). */

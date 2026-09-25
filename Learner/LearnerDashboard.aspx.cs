@@ -117,13 +117,7 @@ namespace RespondX.Learner
 
         private void LoadAlerts(int learnerId)
         {
-            var alerts = new List<AlertItem>
-            {
-                new AlertItem { Title = "New Module Available", Message = "Advanced Emergency Response has been added", AlertType = "notification", CreatedAt = DateTime.Now.AddHours(-3), TimeAgo = "3 hours ago" },
-                new AlertItem { Title = "Reminder", Message = "Complete your CPR certification quiz", AlertType = "reminder", CreatedAt = DateTime.Now.AddDays(-1), TimeAgo = "1 day ago" }
-            };
-
-            rptAlerts.DataSource = alerts;
+            rptAlerts.DataSource = AlertRepository.GetLearnerAlerts(learnerId, 5);
             rptAlerts.DataBind();
         }
     }
