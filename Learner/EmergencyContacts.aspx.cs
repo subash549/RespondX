@@ -92,8 +92,7 @@ namespace RespondX.Learner
 
         private void ShowNotification(string message, string type)
         {
-            ClientScript.RegisterStartupScript(this.GetType(), "notify",
-                $"showNotification('{message}', '{type}');", true);
+            UiHelper.Notify(this, message, type);
         }
     }
 

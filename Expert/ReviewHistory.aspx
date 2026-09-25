@@ -59,7 +59,7 @@
                         <td><strong><%# Eval("Title") %></strong></td>
                         <td><span class="badge badge-secondary"><%# Eval("ContentType") %></span></td>
                         <td><span class="status-badge <%# Eval("Status").ToString().ToLower().Replace(" ", "") %>"><%# Eval("Status") %></span></td>
-                        <td><%# Eval("Rating") %> ⭐</td>
+                        <td><%# RenderStars(Eval("Rating")) %></td>
                         <td><%# Eval("ReviewedAt") %></td>
                         <td>
                             <asp:Button ID="btnView" runat="server" Text="View" CssClass="btn btn-info btn-sm" CommandName="View" CommandArgument='<%# Eval("ReviewID") %>' OnClick="btnView_Click" />

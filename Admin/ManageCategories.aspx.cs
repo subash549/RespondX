@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Configuration;
+using System.Data;
 using System.Data.SqlClient;
 using System.Web.UI;
 using System.Web.UI.WebControls;
@@ -11,7 +11,7 @@ namespace RespondX.Admin
 {
     public partial class ManageCategories : Page
     {
-        private string connString = ConfigurationManager.ConnectionStrings["DefaultConnection"]?.ConnectionString ?? "Data Source=DESKTOP-5UH7Q5H\\SQLEXPRESS01;Initial Catalog=RespondX;Integrated Security=True;TrustServerCertificate=True;";
+        private static string connString => DatabaseHelper.ConnectionString;
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -27,153 +27,222 @@ namespace RespondX.Admin
         private void LoadCategories()
         {
             var categories = new List<CategoryItem>();
+            string search = txtSearch.Text.Trim();
+
             using (var conn = new SqlConnection(connString))
+            using (var cmd = new SqlCommand(@"
+                SELECT c.CategoryID, c.Name, c.Description, c.IsActive,
+                       (SELECT COUNT(*) FROM dbo.Modules m WHERE m.CategoryID = c.CategoryID) AS ModuleCount
+                FROM dbo.Categories c
+                WHERE @Search IS NULL OR c.Name LIKE @Search OR c.Description LIKE @Search
+                ORDER BY c.Name;", conn))
             {
-                var query = @"
-                    SELECT c.CategoryID, c.Name, c.Description, c.IsActive, 
-                           (SELECT COUNT(*) FROM Modules m WHERE m.CategoryID = c.CategoryID) AS ModuleCount 
-                    FROM Categories c";
-                var search = txtSearch.Text.Trim();
-                if (!string.IsNullOrEmpty(search))
+                cmd.Parameters.Add("@Search", SqlDbType.NVarChar, 110).Value =
+                    string.IsNullOrEmpty(search) ? (object)DBNull.Value : "%" + search + "%";
+                conn.Open();
+                using (var reader = cmd.ExecuteReader())
                 {
-                    query += " WHERE c.Name LIKE @Search OR c.Description LIKE @Search";
-                }
-                
-                using (var cmd = new SqlCommand(query, conn))
-                {
-                    if (!string.IsNullOrEmpty(search))
+                    while (reader.Read())
                     {
-                        cmd.Parameters.AddWithValue("@Search", "%" + search + "%");
-                    }
-                    
-                    conn.Open();
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
+                        categories.Add(new CategoryItem
                         {
-                            categories.Add(new CategoryItem
-                            {
-                                CategoryID = Convert.ToInt32(reader["CategoryID"]),
-                                Name = reader["Name"].ToString(),
-                                Description = reader["Description"].ToString(),
-                                IsActive = Convert.ToBoolean(reader["IsActive"]),
-                                ModuleCount = Convert.ToInt32(reader["ModuleCount"])
-                            });
-                        }
+                            CategoryID = Convert.ToInt32(reader["CategoryID"]),
+                            Name = Convert.ToString(reader["Name"]),
+                            Description = Convert.ToString(reader["Description"]),
+                            IsActive = Convert.ToBoolean(reader["IsActive"]),
+                            ModuleCount = Convert.ToInt32(reader["ModuleCount"])
+                        });
                     }
                 }
             }
 
             rptCategories.DataSource = categories;
             rptCategories.DataBind();
+            pnlNoCategories.Visible = categories.Count == 0;
         }
 
         protected void rptCategories_ItemCommand(object source, RepeaterCommandEventArgs e)
         {
-            int categoryId = int.Parse(e.CommandArgument.ToString());
+            int categoryId;
+            if (!int.TryParse(Convert.ToString(e.CommandArgument), out categoryId))
+                return;
 
-            if (e.CommandName == "Edit")
+            switch (e.CommandName)
             {
-                EditCategory(categoryId);
-            }
-            else if (e.CommandName == "Toggle")
-            {
-                ToggleCategory(categoryId);
+                case "EditCategory":
+                    EditCategory(categoryId);
+                    break;
+                case "ToggleCategory":
+                    RunCommand("UPDATE dbo.Categories SET IsActive = CASE WHEN IsActive = 1 THEN 0 ELSE 1 END WHERE CategoryID = @ID;",
+                        categoryId, "Category status updated.");
+                    break;
+                case "DeleteCategory":
+                    DeleteCategory(categoryId);
+                    break;
             }
         }
 
         private void EditCategory(int categoryId)
         {
             using (var conn = new SqlConnection(connString))
+            using (var cmd = new SqlCommand("SELECT Name, Description, IsActive FROM dbo.Categories WHERE CategoryID = @ID;", conn))
             {
-                using (var cmd = new SqlCommand("SELECT Name, Description, IsActive FROM Categories WHERE CategoryID = @ID", conn))
+                cmd.Parameters.Add("@ID", SqlDbType.Int).Value = categoryId;
+                conn.Open();
+                using (var reader = cmd.ExecuteReader())
                 {
-                    cmd.Parameters.AddWithValue("@ID", categoryId);
-                    conn.Open();
-                    using (var reader = cmd.ExecuteReader())
+                    if (!reader.Read())
                     {
-                        if (reader.Read())
-                        {
-                            lblModalTitle.Text = "Edit Category";
-                            hfCategoryID.Value = categoryId.ToString();
-                            txtName.Text = reader["Name"].ToString();
-                            txtDescription.Text = reader["Description"].ToString();
-                            chkIsActive.Checked = Convert.ToBoolean(reader["IsActive"]);
-
-                            ScriptManager.RegisterStartupScript(this, GetType(), "showModal", "$('#modalCategory').modal('show');", true);
-                        }
+                        ShowError("That category no longer exists.");
+                        LoadCategories();
+                        return;
                     }
+
+                    ClearForm();
+                    lblModalTitle.Text = "Edit Category";
+                    hfCategoryID.Value = categoryId.ToString();
+                    txtName.Text = Convert.ToString(reader["Name"]);
+                    txtDescription.Text = Convert.ToString(reader["Description"]);
+                    chkIsActive.Checked = Convert.ToBoolean(reader["IsActive"]);
                 }
             }
+
+            UiHelper.ShowModal(this, "modalCategory");
         }
 
-        private void ToggleCategory(int categoryId)
+        private void DeleteCategory(int categoryId)
         {
-            using (var conn = new SqlConnection(connString))
+            try
             {
-                using (var cmd = new SqlCommand("UPDATE Categories SET IsActive = ~IsActive WHERE CategoryID = @ID", conn))
+                using (var conn = new SqlConnection(connString))
+                using (var cmd = new SqlCommand(@"
+                    IF EXISTS (SELECT 1 FROM dbo.Modules WHERE CategoryID = @ID)
+                        SELECT -1;
+                    ELSE
+                    BEGIN
+                        DELETE FROM dbo.Categories WHERE CategoryID = @ID;
+                        SELECT @@ROWCOUNT;
+                    END", conn))
                 {
-                    cmd.Parameters.AddWithValue("@ID", categoryId);
+                    cmd.Parameters.Add("@ID", SqlDbType.Int).Value = categoryId;
                     conn.Open();
-                    cmd.ExecuteNonQuery();
+                    int result = Convert.ToInt32(cmd.ExecuteScalar());
+                    if (result == -1)
+                        ShowError("This category still has modules. Move them to another category or deactivate the category instead.");
+                    else
+                        ShowSuccess("Category deleted.");
                 }
             }
-            ShowSuccess("Category status updated successfully");
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Delete category", ex.Message, ex.StackTrace);
+                ShowError("Unable to delete this category. Please try again.");
+            }
+
+            LoadCategories();
+        }
+
+        private void RunCommand(string sql, int categoryId, string successMessage)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connString))
+                using (var cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.Add("@ID", SqlDbType.Int).Value = categoryId;
+                    conn.Open();
+                    if (cmd.ExecuteNonQuery() == 0)
+                        ShowError("That category no longer exists.");
+                    else
+                        ShowSuccess(successMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Update category", ex.Message, ex.StackTrace);
+                ShowError("Unable to update this category. Please try again.");
+            }
+
             LoadCategories();
         }
 
         protected void btnSaveCategory_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrEmpty(txtName.Text.Trim()))
+            string name = txtName.Text.Trim();
+            string description = txtDescription.Text.Trim();
+
+            if (name.Length == 0 || name.Length > 100)
             {
-                ShowError("Name is required.");
+                ShowFormError("Enter a category name of up to 100 characters.");
+                return;
+            }
+            if (description.Length > 500)
+            {
+                ShowFormError("The description must be 500 characters or fewer.");
                 return;
             }
 
             int categoryId;
-            bool isNew = !int.TryParse(hfCategoryID.Value, out categoryId) || categoryId == 0;
+            bool isNew = !int.TryParse(hfCategoryID.Value, out categoryId) || categoryId <= 0;
 
-            using (var conn = new SqlConnection(connString))
+            try
             {
-                string query = isNew ? 
-                    "INSERT INTO Categories (Name, Description, IsActive) VALUES (@Name, @Description, @IsActive)" : 
-                    "UPDATE Categories SET Name = @Name, Description = @Description, IsActive = @IsActive WHERE CategoryID = @ID";
-
-                using (var cmd = new SqlCommand(query, conn))
+                using (var conn = new SqlConnection(connString))
                 {
-                    cmd.Parameters.AddWithValue("@Name", txtName.Text.Trim());
-                    cmd.Parameters.AddWithValue("@Description", txtDescription.Text.Trim());
-                    cmd.Parameters.AddWithValue("@IsActive", chkIsActive.Checked);
-                    if (!isNew)
-                    {
-                        cmd.Parameters.AddWithValue("@ID", categoryId);
-                    }
-                    
                     conn.Open();
-                    cmd.ExecuteNonQuery();
+                    using (var check = new SqlCommand(
+                        "SELECT COUNT(*) FROM dbo.Categories WHERE Name = @Name AND CategoryID <> @ID;", conn))
+                    {
+                        check.Parameters.Add("@Name", SqlDbType.NVarChar, 100).Value = name;
+                        check.Parameters.Add("@ID", SqlDbType.Int).Value = isNew ? 0 : categoryId;
+                        if (Convert.ToInt32(check.ExecuteScalar()) > 0)
+                        {
+                            ShowFormError("A category with this name already exists.");
+                            return;
+                        }
+                    }
+
+                    using (var cmd = new SqlCommand(isNew
+                        ? "INSERT INTO dbo.Categories (Name, Description, IsActive) VALUES (@Name, @Description, @IsActive);"
+                        : "UPDATE dbo.Categories SET Name = @Name, Description = @Description, IsActive = @IsActive WHERE CategoryID = @ID;", conn))
+                    {
+                        cmd.Parameters.Add("@Name", SqlDbType.NVarChar, 100).Value = name;
+                        cmd.Parameters.Add("@Description", SqlDbType.NVarChar, 500).Value =
+                            description.Length == 0 ? (object)DBNull.Value : description;
+                        cmd.Parameters.Add("@IsActive", SqlDbType.Bit).Value = chkIsActive.Checked;
+                        if (!isNew)
+                            cmd.Parameters.Add("@ID", SqlDbType.Int).Value = categoryId;
+                        cmd.ExecuteNonQuery();
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Save category", ex.Message, ex.StackTrace);
+                ShowFormError("Unable to save this category. Please try again.");
+                return;
+            }
 
-            ShowSuccess(isNew ? "Category added successfully" : "Category updated successfully");
+            ShowSuccess(isNew ? "Category added." : "Category updated.");
             ClearForm();
             LoadCategories();
-
-            ScriptManager.RegisterStartupScript(this, GetType(), "hideModal", "$('#modalCategory').modal('hide');", true);
+            UiHelper.HideModal(this, "modalCategory");
         }
 
         private void ClearForm()
         {
-            hfCategoryID.Value = "";
-            txtName.Text = "";
-            txtDescription.Text = "";
+            hfCategoryID.Value = string.Empty;
+            txtName.Text = string.Empty;
+            txtDescription.Text = string.Empty;
             chkIsActive.Checked = true;
             lblModalTitle.Text = "Add Category";
+            pnlModalError.Visible = false;
         }
 
         protected void btnAddCategory_Click(object sender, EventArgs e)
         {
             ClearForm();
-            ScriptManager.RegisterStartupScript(this, GetType(), "showModal", "$('#modalCategory').modal('show');", true);
+            UiHelper.ShowModal(this, "modalCategory");
         }
 
         protected void btnSearch_Click(object sender, EventArgs e)
@@ -181,17 +250,24 @@ namespace RespondX.Admin
             LoadCategories();
         }
 
+        private void ShowFormError(string message)
+        {
+            pnlModalError.Visible = true;
+            lblModalError.Text = Server.HtmlEncode(message);
+            UiHelper.ShowModal(this, "modalCategory");
+        }
+
         private void ShowSuccess(string message)
         {
             pnlSuccess.Visible = true;
-            lblSuccess.Text = message;
+            lblSuccess.Text = Server.HtmlEncode(message);
             pnlError.Visible = false;
         }
 
         private void ShowError(string message)
         {
             pnlError.Visible = true;
-            lblError.Text = message;
+            lblError.Text = Server.HtmlEncode(message);
             pnlSuccess.Visible = false;
         }
     }

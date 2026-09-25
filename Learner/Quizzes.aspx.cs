@@ -59,11 +59,6 @@ namespace RespondX.Learner
             if (!learnerId.HasValue)
                 return quizzes;
 
-            var connectionSetting = ConfigurationManager.ConnectionStrings["DefaultConnection"]
-                ?? ConfigurationManager.ConnectionStrings["RespondX"];
-            if (connectionSetting == null || string.IsNullOrWhiteSpace(connectionSetting.ConnectionString))
-                return quizzes;
-
             const string query = @"
                 SELECT q.QuizID, q.ModuleID, m.Title AS ModuleTitle, q.Title, q.Description,
                        q.TimeLimitMinutes, q.PassingScore, q.MaxAttempts,
@@ -97,7 +92,7 @@ namespace RespondX.Learner
 
             try
             {
-                using (var connection = new SqlConnection(connectionSetting.ConnectionString))
+                using (var connection = new SqlConnection(DatabaseHelper.ConnectionString))
                 using (var command = new SqlCommand(query, connection))
                 {
                     command.Parameters.Add("@LearnerID", SqlDbType.Int).Value = learnerId.Value;

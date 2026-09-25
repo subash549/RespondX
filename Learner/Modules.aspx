@@ -32,7 +32,7 @@
             <asp:Repeater ID="rptModules" runat="server">
                 <ItemTemplate>
                     <div class="module-card">
-                        <asp:Image ID="imgThumbnail" runat="server" ImageUrl='<%# string.IsNullOrEmpty(Eval("ThumbnailUrl")?.ToString()) ? "~/Content/Images/default-module.jpg" : Eval("ThumbnailUrl") %>' CssClass="module-thumbnail" />
+                        <asp:Image ID="imgThumbnail" runat="server" ImageUrl='<%# string.IsNullOrEmpty(Eval("ThumbnailUrl")?.ToString()) ? "~/Content/Images/default-module.svg" : Eval("ThumbnailUrl") %>' CssClass="module-thumbnail" />
                         <div class="module-content-area">
                             <div class="module-title"><%# Eval("Title") %></div>
                             <span class="badge badge-info mb-2"><%# Eval("CategoryName") %></span>

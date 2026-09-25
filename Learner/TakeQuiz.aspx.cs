@@ -104,13 +104,8 @@ namespace RespondX.Learner
                 };
             }
 
-            var setting = ConfigurationManager.ConnectionStrings["DefaultConnection"]
-                ?? ConfigurationManager.ConnectionStrings["RespondX"];
-            if (setting == null || string.IsNullOrWhiteSpace(setting.ConnectionString))
-                return null;
-
             QuizItem quiz = null;
-            using (var connection = new SqlConnection(setting.ConnectionString))
+            using (var connection = new SqlConnection(DatabaseHelper.ConnectionString))
             using (var command = new SqlCommand(@"
                 SELECT q.QuizID, q.ModuleID, q.Title, q.Description,
                        q.TimeLimitMinutes, q.PassingScore, q.MaxAttempts, m.Title AS ModuleTitle

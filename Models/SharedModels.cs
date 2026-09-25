@@ -200,6 +200,8 @@ namespace RespondX.Models
         public bool IsRead { get; set; }
         public bool IsAcknowledged { get; set; }
         public DateTime? ExpiresAt { get; set; }
+        public int RecipientCount { get; set; }
+        public int ReadCount { get; set; }
     }
 
     // ========== Review Models ==========

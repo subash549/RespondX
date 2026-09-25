@@ -15,7 +15,7 @@
                         <p class="text-muted"><asp:Label ID="lblContentType" runat="server"></asp:Label> | Submitted by: <asp:Label ID="lblSubmittedBy" runat="server"></asp:Label></p>
                     </div>
                     <div>
-                        <span class="priority-badge <asp:Label ID="lblPriorityClass" runat="server"></asp:Label>">
+                        <span class="priority-badge <asp:Literal ID="lblPriorityClass" runat="server"></asp:Literal>">
                             Priority: <asp:Label ID="lblPriority" runat="server"></asp:Label>
                         </span>
                     </div>
@@ -35,11 +35,11 @@
                             <label>Overall Rating *</label>
                             <div class="rating-group">
                                 <asp:RadioButtonList ID="rblRating" runat="server" RepeatDirection="Horizontal" CssClass="rating-list">
-                                    <asp:ListItem Value="5">⭐ 5 - Excellent</asp:ListItem>
-                                    <asp:ListItem Value="4">⭐ 4 - Good</asp:ListItem>
-                                    <asp:ListItem Value="3">⭐ 3 - Average</asp:ListItem>
-                                    <asp:ListItem Value="2">⭐ 2 - Needs Improvement</asp:ListItem>
-                                    <asp:ListItem Value="1">⭐ 1 - Poor</asp:ListItem>
+                                    <asp:ListItem Value="5">5 - Excellent</asp:ListItem>
+                                    <asp:ListItem Value="4">4 - Good</asp:ListItem>
+                                    <asp:ListItem Value="3">3 - Average</asp:ListItem>
+                                    <asp:ListItem Value="2">2 - Needs Improvement</asp:ListItem>
+                                    <asp:ListItem Value="1">1 - Poor</asp:ListItem>
                                 </asp:RadioButtonList>
                             </div>
                         </div>

@@ -12,9 +12,7 @@ namespace RespondX.Admin
 {
     public partial class ManageLessons : Page
     {
-        private readonly string connectionString =
-            ConfigurationManager.ConnectionStrings["DefaultConnection"]?.ConnectionString
-            ?? ConfigurationManager.ConnectionStrings["RespondX"]?.ConnectionString;
+        private static string connectionString => DatabaseHelper.ConnectionString;
 
         private int moduleId;
 

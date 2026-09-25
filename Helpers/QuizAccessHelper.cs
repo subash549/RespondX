@@ -7,10 +7,7 @@ namespace RespondX.Helpers
 {
     public static class QuizAccessHelper
     {
-        private static string ConnectionString =>
-            ConfigurationManager.ConnectionStrings["DefaultConnection"]?.ConnectionString
-            ?? ConfigurationManager.ConnectionStrings["RespondX"]?.ConnectionString
-            ?? "Data Source=DESKTOP-5UH7Q5H\\SQLEXPRESS01;Initial Catalog=RespondX;Integrated Security=True;TrustServerCertificate=True;";
+        private static string ConnectionString => DatabaseHelper.ConnectionString;
 
         public static int GetModuleIdByTitle(string moduleTitle)
         {

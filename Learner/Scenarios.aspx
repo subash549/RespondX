@@ -1,61 +1,63 @@
-<%@ Page Title="Scenarios - RespondX" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Scenarios.aspx.cs" Inherits="RespondX.Learner.Scenarios" %>
+<%@ Page Title="Scenarios" Language="C#" MasterPageFile="~/Site.Master" AutoEventWireup="true" CodeBehind="Scenarios.aspx.cs" Inherits="RespondX.Learner.Scenarios" %>
 <%@ MasterType VirtualPath="~/Site.Master" %>
 
-<asp:Content ID="Content1" ContentPlaceHolderID="HeadContent" runat="server">
-    <link runat="server" href="~/Content/Learner.css" rel="stylesheet" />
-</asp:Content>
-
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
-    <div class="container">
-        <div class="page-header">
-            <h1><i class="fas fa-users"></i> Practice Scenarios</h1>
-            <p>Practice real-world emergency response scenarios</p>
-        </div>
+    <asp:UpdatePanel ID="upScenarioList" runat="server">
+        <ContentTemplate>
+            <div class="container crud-region">
+                <div class="page-header">
+                    <h1><i class="fas fa-users"></i> Practice Scenarios</h1>
+                    <p>Practice real-world emergency response scenarios</p>
+                </div>
 
-        <div class="filter-bar">
-            <div class="filter-group">
-                <label>Difficulty:</label>
-                <asp:DropDownList ID="ddlDifficulty" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlDifficulty_SelectedIndexChanged">
-                    <asp:ListItem Value="All">All Levels</asp:ListItem>
-                    <asp:ListItem Value="Beginner">Beginner</asp:ListItem>
-                    <asp:ListItem Value="Intermediate">Intermediate</asp:ListItem>
-                    <asp:ListItem Value="Advanced">Advanced</asp:ListItem>
-                </asp:DropDownList>
-            </div>
-            <div class="filter-group">
-                <asp:TextBox ID="txtSearch" runat="server" CssClass="form-control" placeholder="Search scenarios..." />
-                <asp:Button ID="btnSearch" runat="server" Text="Search" CssClass="btn btn-primary" OnClick="btnSearch_Click" />
-            </div>
-        </div>
-
-        <div class="scenario-grid">
-            <asp:Repeater ID="rptScenarios" runat="server">
-                <ItemTemplate>
-                    <div class="scenario-card">
-                        <div class="scenario-header">
-                            <h3><%# Eval("Title") %></h3>
-                            <span class="badge badge-primary"><%# Eval("Module") %></span>
-                        </div>
-                        <p class="scenario-description"><%# Eval("Description") %></p>
-                        <div class="scenario-meta">
-                            <span><i class="fas fa-signal"></i> Difficulty: <span class="text-<%# Eval("DifficultyClass") %>"><%# Eval("Difficulty") %></span></span>
-                            <span><i class="fas fa-clock"></i> <%# Eval("TimeEstimate") %> min</span>
-                            <span class="badge <%# Eval("StatusBadge") %>"><%# Eval("Status") %></span>
-                        </div>
-                        <div class="scenario-actions">
-                            <a href='ScenarioPractice.aspx?id=<%# Eval("ScenarioID") %>' class="btn btn-success">
-                                <i class="fas fa-play"></i> Practice
-                            </a>
-                            <span class="text-muted"><%# Eval("Attempts") %> attempts</span>
-                        </div>
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <label for="<%= ddlDifficulty.ClientID %>">Difficulty:</label>
+                        <asp:DropDownList ID="ddlDifficulty" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlDifficulty_SelectedIndexChanged">
+                            <asp:ListItem Value="All">All Levels</asp:ListItem>
+                            <asp:ListItem Value="1">Beginner</asp:ListItem>
+                            <asp:ListItem Value="2">Easy</asp:ListItem>
+                            <asp:ListItem Value="3">Intermediate</asp:ListItem>
+                            <asp:ListItem Value="4">Advanced</asp:ListItem>
+                            <asp:ListItem Value="5">Expert</asp:ListItem>
+                        </asp:DropDownList>
                     </div>
-                </ItemTemplate>
-                <FooterTemplate>
-                    <asp:Label ID="lblNoScenarios" runat="server" Text="No scenarios found" Visible='<%# rptScenarios.Items.Count == 0 %>' CssClass="text-muted text-center" />
-                </FooterTemplate>
-            </asp:Repeater>
-        </div>
-    </div>
+                    <div class="filter-group">
+                        <asp:TextBox ID="txtSearch" runat="server" CssClass="form-control" placeholder="Search scenarios" />
+                        <asp:Button ID="btnSearch" runat="server" Text="Search" CssClass="btn btn-primary" OnClick="btnSearch_Click" />
+                    </div>
+                </div>
+
+                <div class="scenario-grid">
+                    <asp:Repeater ID="rptScenarios" runat="server">
+                        <ItemTemplate>
+                            <div class="scenario-card">
+                                <div class="scenario-header">
+                                    <h3><%#: Eval("Title") %></h3>
+                                    <span class="badge badge-primary"><%#: Eval("Module") %></span>
+                                </div>
+                                <p class="scenario-description"><%#: Eval("Description") %></p>
+                                <div class="scenario-meta">
+                                    <span><i class="fas fa-signal"></i> Difficulty: <span class="text-<%# Eval("DifficultyClass") %>"><%# Eval("Difficulty") %></span></span>
+                                    <span><i class="fas fa-clock"></i> <%# Eval("TimeEstimate") %> min</span>
+                                    <span class="badge <%# Eval("StatusBadge") %>"><%# Eval("Status") %></span>
+                                </div>
+                                <div class="scenario-actions">
+                                    <a href='ScenarioPractice.aspx?id=<%# Eval("ScenarioID") %>' class="btn btn-success">
+                                        <i class="fas fa-play"></i> Practice
+                                    </a>
+                                </div>
+                            </div>
+                        </ItemTemplate>
+                    </asp:Repeater>
+                    <asp:Panel ID="pnlNoScenarios" runat="server" CssClass="empty-state" Visible="false">
+                        <img runat="server" src="~/Content/Images/empty-state.svg" alt="" />
+                        No practice scenarios match your filters yet.
+                    </asp:Panel>
+                </div>
+            </div>
+        </ContentTemplate>
+    </asp:UpdatePanel>
 
     <style>
         .page-header {
@@ -113,9 +115,9 @@
         .scenario-meta i {
             margin-right: 3px;
         }
-        .text-beginner { color: #48bb78; }
-        .text-intermediate { color: #f6ad55; }
-        .text-advanced { color: #fc8181; }
+        .text-beginner, .text-easy { color: #16794e; }
+        .text-intermediate { color: #a85b00; }
+        .text-advanced, .text-expert { color: #b3261e; }
         .scenario-actions {
             display: flex;
             justify-content: space-between;

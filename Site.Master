@@ -13,60 +13,20 @@
     <link runat="server" href="~/Content/Expert.css" rel="stylesheet" />
     <link runat="server" href="~/Content/Learner.css" rel="stylesheet" />
     <script src="<%= ResolveUrl("~/Scripts/jquery-3.7.0.min.js") %>"></script>
+    <script src="<%= ResolveUrl("~/Scripts/RespondX.js") %>"></script>
+    <link runat="server" rel="icon" type="image/svg+xml" href="~/Content/Images/logo.svg" />
     <asp:ContentPlaceHolder ID="HeadContent" runat="server" />
 </head>
 <body>
+    <div id="rx-progress" aria-hidden="true"></div>
     <form id="form1" runat="server">
-        <asp:ScriptManager runat="server" />
+        <asp:ScriptManager ID="ScriptManager1" runat="server" OnAsyncPostBackError="ScriptManager1_AsyncPostBackError" />
+        <script>RespondX.initAjax();</script>
 
-        <script>
-            (function ($) {
-                if (!$ || $.fn.modal) return;
-
-                $.fn.modal = function (action) {
-                    return this.each(function () {
-                        var modal = this;
-                        var shouldShow = action === 'show' || (action === 'toggle' && !modal.classList.contains('show'));
-
-                        if (shouldShow) {
-                            modal.__returnFocus = document.activeElement;
-                            modal.style.display = 'block';
-                            modal.classList.add('show');
-                            modal.removeAttribute('aria-hidden');
-                            modal.setAttribute('aria-modal', 'true');
-                            document.body.classList.add('modal-open');
-                            var firstField = modal.querySelector('input:not([type="hidden"]), textarea, select, button');
-                            if (firstField) firstField.focus();
-                        } else {
-                            modal.classList.remove('show');
-                            modal.style.display = 'none';
-                            modal.setAttribute('aria-hidden', 'true');
-                            modal.removeAttribute('aria-modal');
-                            if (!document.querySelector('.modal.show'))
-                                document.body.classList.remove('modal-open');
-                            if (modal.__returnFocus && modal.__returnFocus.focus)
-                                modal.__returnFocus.focus();
-                        }
-                    });
-                };
-
-                $(document).on('click', '[data-dismiss="modal"]', function (event) {
-                    event.preventDefault();
-                    $(this).closest('.modal').modal('hide');
-                });
-                $(document).on('click', '.modal', function (event) {
-                    if (event.target === this) $(this).modal('hide');
-                });
-                $(document).on('keydown', function (event) {
-                    if (event.key === 'Escape') $('.modal.show').last().modal('hide');
-                });
-            })(window.jQuery);
-        </script>
-        
         <nav class="navbar" aria-label="Main navigation">
             <div class="container">
                 <a runat="server" href="~/Default.aspx" class="navbar-brand">
-                    <i class="fas fa-shield-alt"></i> RespondX
+                    <img runat="server" src="~/Content/Images/logo.svg" alt="" class="brand-logo" width="28" height="28" /> RespondX
                 </a>
                 <button type="button" class="navbar-toggler" id="navbarToggler" aria-label="Toggle navigation" aria-expanded="false" aria-controls="navbarLinks">
                     <i class="fas fa-bars"></i>
@@ -149,17 +109,24 @@
                 });
             }
 
-            var currentPath = window.location.pathname.toLowerCase();
+            // Friendly URLs drop ".aspx", so compare paths without the extension.
+            function normalizePath(path) {
+                return path.toLowerCase().replace(/\.aspx$/, '').replace(/\/$/, '');
+            }
             var sectionAliases = {
-                '/learner/takequiz.aspx': '/learner/quizzes.aspx',
-                '/learner/quizresult.aspx': '/learner/quizzes.aspx',
-                '/learner/lesson.aspx': '/learner/modules.aspx',
-                '/learner/moduledetails.aspx': '/learner/modules.aspx',
-                '/learner/scenariopractice.aspx': '/learner/scenarios.aspx'
+                '/learner/takequiz': '/learner/quizzes',
+                '/learner/quizresult': '/learner/quizzes',
+                '/learner/lesson': '/learner/modules',
+                '/learner/moduledetails': '/learner/modules',
+                '/learner/scenariopractice': '/learner/scenarios',
+                '/admin/managelessons': '/admin/managemodules',
+                '/admin/managequizzes': '/admin/managemodules',
+                '/expert/reviewcontent': '/expert/pendingreviews'
             };
+            var currentPath = normalizePath(window.location.pathname);
             var activePath = sectionAliases[currentPath] || currentPath;
             document.querySelectorAll('#navbarLinks a[href]').forEach(function (link) {
-                var linkPath = new URL(link.href, window.location.href).pathname.toLowerCase();
+                var linkPath = normalizePath(new URL(link.href, window.location.href).pathname);
                 if (linkPath === activePath) {
                     link.classList.add('active');
                     link.setAttribute('aria-current', 'page');

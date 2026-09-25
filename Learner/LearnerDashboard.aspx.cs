@@ -10,7 +10,7 @@ namespace RespondX.Learner
 {
     public partial class LearnerDashboard : Page
     {
-        private string connString = ConfigurationManager.ConnectionStrings["DefaultConnection"]?.ConnectionString ?? "Data Source=DESKTOP-5UH7Q5H\\SQLEXPRESS01;Initial Catalog=RespondX;Integrated Security=True;TrustServerCertificate=True;";
+        private static string connString => DatabaseHelper.ConnectionString;
 
         protected void Page_Load(object sender, EventArgs e)
         {

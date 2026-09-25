@@ -929,3 +929,261 @@ main {
         flex-direction: column;
     }
 }
+
+/* ========== Brand logo ========== */
+.brand-logo {
+    display: block;
+    width: 28px;
+    height: 28px;
+}
+
+/* ========== Top loading bar ========== */
+#rx-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 2000;
+    width: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #7ea2ff, var(--accent));
+    box-shadow: 0 0 8px rgba(37, 84, 199, 0.5);
+    opacity: 0;
+    pointer-events: none;
+}
+
+    #rx-progress.active {
+        opacity: 1;
+        width: 85%;
+        transition: width 6s cubic-bezier(0.1, 0.8, 0.2, 1), opacity 0.15s ease;
+    }
+
+    #rx-progress.done {
+        width: 100%;
+        opacity: 0;
+        transition: width 0.2s ease, opacity 0.3s ease 0.15s;
+    }
+
+html.rx-busy,
+html.rx-busy * {
+    cursor: progress;
+}
+
+/* Buttons that triggered a partial postback are dimmed and can't be clicked twice.
+   <input> buttons can't host a pseudo-element, so only <a>/<button> get a spinner. */
+.btn.is-loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+    a.btn.is-loading,
+    button.btn.is-loading {
+        position: relative;
+        color: transparent !important;
+    }
+
+        a.btn.is-loading::after,
+        button.btn.is-loading::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 16px;
+            height: 16px;
+            margin: -8px 0 0 -8px;
+            border: 2px solid rgba(255, 255, 255, 0.55);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: rx-spin 0.7s linear infinite;
+        }
+
+        a.btn-secondary.is-loading::after,
+        button.btn-secondary.is-loading::after {
+            border-color: rgba(51, 65, 85, 0.25);
+            border-top-color: var(--body-text);
+        }
+
+@keyframes rx-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ========== Toast notifications ========== */
+#rx-toast-container {
+    position: fixed;
+    top: 72px;
+    right: 20px;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: min(380px, calc(100vw - 40px));
+    pointer-events: none;
+}
+
+.rx-toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--info);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    color: var(--ink);
+    font-size: 14px;
+    opacity: 0;
+    transform: translateX(16px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: auto;
+}
+
+    .rx-toast.show {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    .rx-toast > i {
+        margin-top: 3px;
+        color: var(--info);
+    }
+
+.rx-toast-text {
+    flex: 1;
+}
+
+.rx-toast-close {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+    .rx-toast-close:hover {
+        color: var(--ink);
+    }
+
+.rx-toast-success {
+    border-left-color: var(--success);
+}
+
+    .rx-toast-success > i {
+        color: var(--success);
+    }
+
+.rx-toast-error {
+    border-left-color: var(--danger);
+}
+
+    .rx-toast-error > i {
+        color: var(--danger);
+    }
+
+.rx-toast-warning {
+    border-left-color: var(--warning);
+}
+
+    .rx-toast-warning > i {
+        color: var(--warning);
+    }
+
+/* ========== Image icons ========== */
+.img-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    vertical-align: -3px;
+}
+
+.btn .img-icon {
+    margin: 0 4px;
+}
+
+.star-rating {
+    display: inline-flex;
+    gap: 2px;
+    vertical-align: middle;
+}
+
+    .star-rating .img-icon {
+        width: 15px;
+        height: 15px;
+    }
+
+/* ========== Status pages (access denied, empty states) ========== */
+.status-page {
+    max-width: 520px;
+    margin: 60px auto;
+    padding: 40px 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    text-align: center;
+}
+
+    .status-page h1 {
+        margin-bottom: 8px;
+        font-size: 24px;
+    }
+
+    .status-page p {
+        color: var(--muted);
+    }
+
+.status-illustration {
+    width: 200px;
+    max-width: 70%;
+    height: auto;
+    margin-bottom: 20px;
+}
+
+.status-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+.empty-state {
+    grid-column: 1 / -1;
+    padding: 36px 20px;
+    color: var(--muted);
+    text-align: center;
+}
+
+    .empty-state img {
+        display: block;
+        width: 140px;
+        height: auto;
+        margin: 0 auto 12px;
+        opacity: 0.9;
+    }
+
+/* Checkbox + label pairs rendered by asp:CheckBox Text="..." */
+.form-check-inline input[type="checkbox"] {
+    margin-right: 6px;
+    vertical-align: -2px;
+}
+
+/* Keeps CRUD lists from jumping while an UpdatePanel refreshes. */
+.rx-busy .crud-region {
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

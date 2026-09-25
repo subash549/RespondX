@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
+using System.Text.RegularExpressions;
+using System.Web;
 using System.Web.UI;
 using RespondX.Helpers;
 using RespondX.Models;
@@ -11,9 +12,16 @@ namespace RespondX.Learner
 {
     public partial class Lesson : Page
     {
-        private readonly string connectionString =
-            ConfigurationManager.ConnectionStrings["DefaultConnection"]?.ConnectionString
-            ?? "Data Source=DESKTOP-5UH7Q5H\\SQLEXPRESS01;Initial Catalog=RespondX;Integrated Security=True;TrustServerCertificate=True;";
+        private static string connectionString => DatabaseHelper.ConnectionString;
+
+        private sealed class LessonView
+        {
+            public LessonItem Lesson;
+            public int? PreviousLessonId;
+            public int? NextLessonId;
+            public int ModuleLessonCount;
+            public int ModuleCompletedCount;
+        }
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -29,44 +37,44 @@ namespace RespondX.Learner
                 }
                 else
                 {
-                    pnlLesson.Visible = false;
-                    pnlNotFound.Visible = true;
+                    ShowNotFound();
                 }
             }
         }
 
+        private void ShowNotFound()
+        {
+            pnlLesson.Visible = false;
+            pnlNotFound.Visible = true;
+        }
+
         private void LoadLesson(int lessonId)
         {
-            var lesson = GetLesson(lessonId);
-            if (lesson == null)
+            var view = GetLessonView(lessonId);
+            if (view == null)
             {
-                pnlLesson.Visible = false;
-                pnlNotFound.Visible = true;
+                ShowNotFound();
                 return;
             }
 
+            var lesson = view.Lesson;
+            Page.Title = lesson.Title;
             pnlLesson.Visible = true;
-            lblLessonTitle.Text = lesson.Title;
-            lblLessonHeading.Text = lesson.Title;
+            lblLessonTitle.Text = Server.HtmlEncode(lesson.Title);
+            lblLessonHeading.Text = Server.HtmlEncode(lesson.Title);
             hfModuleId.Value = lesson.ModuleId.ToString();
             lnkModule.Text = Server.HtmlEncode(lesson.ModuleTitle);
-            lnkModule.NavigateUrl = ResolveUrl("~/Learner/ModuleDetails.aspx?id=" + lesson.ModuleId);
-            litContent.Text = lesson.Content;
-            lblEstimatedTime.Text = lesson.EstimatedTime.ToString();
-            lblStatus.Text = lesson.IsCompleted ? "Completed" : "In Progress";
-            lblStatus.CssClass = "badge " + (lesson.IsCompleted ? "badge-success" : "badge-warning");
-            lblLessonCompleteStatus.Text = lesson.IsCompleted ? "✓ Completed" : "";
-            btnMarkComplete.Enabled = !lesson.IsCompleted;
-            btnMarkComplete.Text = lesson.IsCompleted ? "Completed" : "Mark as Complete";
+            lnkModule.NavigateUrl = "~/Learner/ModuleDetails.aspx?id=" + lesson.ModuleId;
+            litContent.Text = FormatContent(lesson.Content);
+            lblEstimatedTime.Text = EstimateMinutes(lesson.Content).ToString();
 
-            int progress = lesson.IsCompleted ? 100 : 50;
-            pnlLessonProgress.Style["width"] = progress + "%";
-            lblProgressText.Text = $"Lesson Progress: {progress}%";
-
-            LoadResources(lessonId);
+            BindVideo(lesson.VideoUrl);
+            BindNavigation(view);
+            BindCompletion(lesson.IsCompleted, view.ModuleCompletedCount, view.ModuleLessonCount);
+            BindResources(lesson);
         }
 
-        private LessonItem GetLesson(int lessonId)
+        private LessonView GetLessonView(int lessonId)
         {
             var learnerId = SessionHelper.GetCurrentUserId();
             if (!learnerId.HasValue)
@@ -76,7 +84,7 @@ namespace RespondX.Learner
             {
                 using (var conn = new SqlConnection(connectionString))
                 using (var cmd = new SqlCommand(@"
-                    SELECT l.LessonID, l.Title, l.ModuleID, l.Content, m.Title AS ModuleTitle,
+                    SELECT l.LessonID, l.Title, l.ModuleID, l.Content, l.VideoUrl, l.ResourceUrl, m.Title AS ModuleTitle,
                            CAST(CASE WHEN EXISTS
                            (
                                SELECT 1 FROM LearnerProgress lp
@@ -86,7 +94,21 @@ namespace RespondX.Learner
                            ) THEN 1 ELSE 0 END AS BIT) AS IsCompleted
                     FROM Lessons l
                     INNER JOIN Modules m ON m.ModuleID = l.ModuleID
-                    WHERE l.LessonID = @LessonID AND l.IsActive = 1 AND m.IsActive = 1;", conn))
+                    WHERE l.LessonID = @LessonID AND l.IsActive = 1 AND m.IsActive = 1;
+
+                    -- Every active lesson in the same module, in learning order, for prev/next and progress.
+                    SELECT l.LessonID,
+                           CAST(CASE WHEN EXISTS
+                           (
+                               SELECT 1 FROM LearnerProgress lp
+                               WHERE lp.LearnerID = @LearnerID
+                                 AND lp.LessonID = l.LessonID
+                                 AND lp.Status IN (N'Completed', N'Certified')
+                           ) THEN 1 ELSE 0 END AS BIT) AS IsCompleted
+                    FROM Lessons l
+                    WHERE l.IsActive = 1
+                      AND l.ModuleID = (SELECT ModuleID FROM Lessons WHERE LessonID = @LessonID)
+                    ORDER BY l.LessonOrder, l.LessonID;", conn))
                 {
                     cmd.Parameters.Add("@LessonID", SqlDbType.Int).Value = lessonId;
                     cmd.Parameters.Add("@LearnerID", SqlDbType.Int).Value = learnerId.Value;
@@ -97,16 +119,38 @@ namespace RespondX.Learner
                         if (!reader.Read())
                             return null;
 
-                        return new LessonItem
+                        var view = new LessonView
                         {
-                            LessonID = Convert.ToInt32(reader["LessonID"]),
-                            Title = reader["Title"].ToString(),
-                            ModuleTitle = reader["ModuleTitle"].ToString(),
-                            ModuleId = Convert.ToInt32(reader["ModuleID"]),
-                            Content = reader["Content"] == DBNull.Value ? string.Empty : reader["Content"].ToString(),
-                            EstimatedTime = 15,
-                            IsCompleted = Convert.ToBoolean(reader["IsCompleted"])
+                            Lesson = new LessonItem
+                            {
+                                LessonID = Convert.ToInt32(reader["LessonID"]),
+                                Title = Convert.ToString(reader["Title"]),
+                                ModuleTitle = Convert.ToString(reader["ModuleTitle"]),
+                                ModuleId = Convert.ToInt32(reader["ModuleID"]),
+                                Content = Convert.ToString(reader["Content"]),
+                                VideoUrl = Convert.ToString(reader["VideoUrl"]),
+                                ResourceUrl = Convert.ToString(reader["ResourceUrl"]),
+                                IsCompleted = Convert.ToBoolean(reader["IsCompleted"])
+                            }
                         };
+
+                        reader.NextResult();
+                        var orderedIds = new List<int>();
+                        while (reader.Read())
+                        {
+                            orderedIds.Add(Convert.ToInt32(reader["LessonID"]));
+                            if (Convert.ToBoolean(reader["IsCompleted"]))
+                                view.ModuleCompletedCount++;
+                        }
+
+                        view.ModuleLessonCount = orderedIds.Count;
+                        int index = orderedIds.IndexOf(lessonId);
+                        if (index > 0)
+                            view.PreviousLessonId = orderedIds[index - 1];
+                        if (index >= 0 && index < orderedIds.Count - 1)
+                            view.NextLessonId = orderedIds[index + 1];
+
+                        return view;
                     }
                 }
             }
@@ -115,48 +159,123 @@ namespace RespondX.Learner
                 DatabaseHelper.LogError("Load lesson", ex.Message, ex.StackTrace);
                 return null;
             }
-
         }
 
-        private void LoadResources(int lessonId)
+        // Lesson content is authored by admins. Plain text is converted to paragraphs;
+        // content that already contains HTML markup is shown as-is.
+        private static string FormatContent(string content)
         {
-            var resources = new List<ResourceItem>
+            if (string.IsNullOrWhiteSpace(content))
+                return "<p class=\"text-muted\">This lesson has no written content yet.</p>";
+
+            if (Regex.IsMatch(content, @"<\s*(p|div|h[1-6]|ul|ol|br|img|table|strong|em|a)\b", RegexOptions.IgnoreCase))
+                return content;
+
+            var paragraphs = Regex.Split(content.Trim(), @"\r?\n\s*\r?\n");
+            var html = new System.Text.StringBuilder();
+            foreach (var paragraph in paragraphs)
             {
-                new ResourceItem { Title = "Emergency Response Guide", Url = "#", Icon = "file-pdf" },
-                new ResourceItem { Title = "Video Tutorial", Url = "#", Icon = "video" }
-            };
+                html.Append("<p>")
+                    .Append(HttpUtility.HtmlEncode(paragraph.Trim()).Replace("\r\n", "<br />").Replace("\n", "<br />"))
+                    .Append("</p>");
+            }
+            return html.ToString();
+        }
+
+        private static int EstimateMinutes(string content)
+        {
+            string plain = Regex.Replace(content ?? string.Empty, "<.*?>", " ");
+            int words = Regex.Matches(plain, @"\S+").Count;
+            // About 200 words per minute, with a sensible minimum for short lessons.
+            return Math.Max(5, (int)Math.Ceiling(words / 200.0));
+        }
+
+        private void BindVideo(string videoUrl)
+        {
+            string embedUrl = ModuleMediaHelper.GetYouTubeEmbedUrl(videoUrl);
+            pnlLessonVideo.Visible = !string.IsNullOrEmpty(embedUrl);
+            if (pnlLessonVideo.Visible)
+                iframeLessonVideo.Attributes["src"] = embedUrl;
+        }
+
+        private void BindNavigation(LessonView view)
+        {
+            hlPrevLesson.Visible = view.PreviousLessonId.HasValue;
+            if (view.PreviousLessonId.HasValue)
+                hlPrevLesson.NavigateUrl = "~/Learner/Lesson.aspx?id=" + view.PreviousLessonId.Value;
+
+            if (view.NextLessonId.HasValue)
+            {
+                hlNextLesson.NavigateUrl = "~/Learner/Lesson.aspx?id=" + view.NextLessonId.Value;
+                litNextText.Text = "Next Lesson";
+            }
+            else
+            {
+                // Last lesson: send the learner back to the module, where the quiz unlocks.
+                hlNextLesson.NavigateUrl = "~/Learner/ModuleDetails.aspx?id=" + view.Lesson.ModuleId;
+                litNextText.Text = "Back to Module";
+            }
+        }
+
+        private void BindCompletion(bool isCompleted, int completedCount, int totalCount)
+        {
+            lblStatus.Text = isCompleted ? "Completed" : "In Progress";
+            lblStatus.CssClass = "badge " + (isCompleted ? "badge-success" : "badge-warning");
+            lblLessonCompleteStatus.Text = isCompleted ? CompletedHtml() : string.Empty;
+            btnMarkComplete.Visible = !isCompleted;
+
+            int progress = totalCount == 0 ? 0 : (int)Math.Round(completedCount * 100.0 / totalCount);
+            pnlLessonProgress.Style["width"] = progress + "%";
+            lblProgressText.Text = string.Format("Module progress: {0} of {1} lessons completed ({2}%)", completedCount, totalCount, progress);
+        }
+
+        private string CompletedHtml()
+        {
+            return "<img src=\"" + ResolveUrl("~/Content/Images/icons/check.svg") + "\" alt=\"\" class=\"img-icon\" /> Completed";
+        }
+
+        private void BindResources(LessonItem lesson)
+        {
+            var resources = new List<ResourceItem>();
+            if (IsWebUrl(lesson.ResourceUrl))
+                resources.Add(new ResourceItem { Title = "Lesson resource", Url = lesson.ResourceUrl, Icon = "file-alt" });
+            if (IsWebUrl(lesson.VideoUrl))
+                resources.Add(new ResourceItem { Title = "Watch the lesson video", Url = lesson.VideoUrl, Icon = "video" });
 
             rptResources.DataSource = resources;
             rptResources.DataBind();
+            lblNoResources.Visible = resources.Count == 0;
         }
 
-        protected void btnPrevLesson_Click(object sender, EventArgs e)
+        private static bool IsWebUrl(string value)
         {
-            Response.Redirect("Lesson.aspx?id=1");
-        }
-
-        protected void btnNextLesson_Click(object sender, EventArgs e)
-        {
-            Response.Redirect("Lesson.aspx?id=2");
+            Uri uri;
+            return !string.IsNullOrWhiteSpace(value) &&
+                Uri.TryCreate(value, UriKind.Absolute, out uri) &&
+                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
         }
 
         protected void btnMarkComplete_Click(object sender, EventArgs e)
         {
             int lessonId;
             var learnerId = SessionHelper.GetCurrentUserId();
-            var lesson = int.TryParse(Request.QueryString["id"], out lessonId) && learnerId.HasValue
-                ? GetLesson(lessonId)
+            var view = int.TryParse(Request.QueryString["id"], out lessonId) && learnerId.HasValue
+                ? GetLessonView(lessonId)
                 : null;
 
-            if (lesson == null || lesson.IsCompleted)
-                return;
-
-            try
+            if (view == null)
             {
-                using (var conn = new SqlConnection(connectionString))
+                UiHelper.Notify(this, "This lesson is no longer available.", "error");
+                return;
+            }
+
+            if (!view.Lesson.IsCompleted)
+            {
+                try
                 {
-                    conn.Open();
-                    using (var transaction = conn.BeginTransaction())
+                    DatabaseHelper.EnsureLearnerProfile(learnerId.Value);
+
+                    using (var conn = new SqlConnection(connectionString))
                     using (var cmd = new SqlCommand(@"
                         UPDATE LearnerProgress
                         SET Status = N'Completed',
@@ -171,38 +290,30 @@ namespace RespondX.Learner
                                 (LearnerID, ModuleID, LessonID, Status, StartedAt, CompletedAt, LastAccessedAt, ProgressPercentage, TimeSpentMinutes)
                             VALUES
                                 (@LearnerID, @ModuleID, @LessonID, N'Completed', GETDATE(), GETDATE(), GETDATE(), 100, 0);
-                        END;", conn, transaction))
+                        END;", conn))
                     {
                         cmd.Parameters.Add("@LearnerID", SqlDbType.Int).Value = learnerId.Value;
-                        cmd.Parameters.Add("@ModuleID", SqlDbType.Int).Value = lesson.ModuleId;
-                        cmd.Parameters.Add("@LessonID", SqlDbType.Int).Value = lesson.LessonID;
+                        cmd.Parameters.Add("@ModuleID", SqlDbType.Int).Value = view.Lesson.ModuleId;
+                        cmd.Parameters.Add("@LessonID", SqlDbType.Int).Value = view.Lesson.LessonID;
+                        conn.Open();
                         cmd.ExecuteNonQuery();
-                        transaction.Commit();
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                DatabaseHelper.LogError("Mark lesson complete", ex.Message, ex.StackTrace);
-                lblLessonCompleteStatus.Text = "Unable to save completion. Please try again.";
-                lblLessonCompleteStatus.CssClass = "text-danger ml-1";
-                return;
+                catch (Exception ex)
+                {
+                    DatabaseHelper.LogError("Mark lesson complete", ex.Message, ex.StackTrace);
+                    UiHelper.Notify(this, "Unable to save your progress. Please try again.", "error");
+                    return;
+                }
+
+                view.ModuleCompletedCount++;
             }
 
-            ShowNotification("Lesson marked as complete!", "success");
-            btnMarkComplete.Enabled = false;
-            btnMarkComplete.Text = "Completed";
-            lblStatus.Text = "Completed";
-            lblStatus.CssClass = "badge badge-success";
-            lblLessonCompleteStatus.Text = "✓ Completed";
-            pnlLessonProgress.Style["width"] = "100%";
-            lblProgressText.Text = "Lesson Progress: 100%";
-        }
-
-        private void ShowNotification(string message, string type)
-        {
-            ClientScript.RegisterStartupScript(this.GetType(), "notify",
-                $"showNotification('{message}', '{type}');", true);
+            BindCompletion(true, view.ModuleCompletedCount, view.ModuleLessonCount);
+            upLessonHeader.Update();
+            UiHelper.Notify(this, view.NextLessonId.HasValue
+                ? "Lesson completed. On to the next one!"
+                : "Lesson completed. You've finished every lesson in this module.", "success");
         }
     }
 }

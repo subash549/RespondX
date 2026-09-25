@@ -9,36 +9,24 @@ namespace RespondX.Helpers
 {
     public static class DatabaseHelper
     {
-        private static readonly string ConnectionString;
+        private static readonly Lazy<string> connectionString = new Lazy<string>(ResolveConnectionString);
 
-        static DatabaseHelper()
+        /// <summary>
+        /// The single connection string used by every page and helper. Web.config must define
+        /// "RespondX" (or "DefaultConnection"); there is deliberately no machine-specific fallback,
+        /// so a missing setting fails loudly instead of silently pointing at a developer PC.
+        /// </summary>
+        public static string ConnectionString => connectionString.Value;
+
+        private static string ResolveConnectionString()
         {
-            try
-            {
-                // Try to get connection string from web.config
-                var connectionStringSettings = ConfigurationManager.ConnectionStrings["DefaultConnection"];
+            var setting = ConfigurationManager.ConnectionStrings["RespondX"]
+                ?? ConfigurationManager.ConnectionStrings["DefaultConnection"];
 
-                // If not found, try the old name
-                if (connectionStringSettings == null)
-                {
-                    connectionStringSettings = ConfigurationManager.ConnectionStrings["RespondX"];
-                }
+            if (setting == null || string.IsNullOrWhiteSpace(setting.ConnectionString))
+                throw new ConfigurationErrorsException("The RespondX database connection string is not configured in Web.config.");
 
-                if (connectionStringSettings != null && !string.IsNullOrEmpty(connectionStringSettings.ConnectionString))
-                {
-                    ConnectionString = connectionStringSettings.ConnectionString;
-                }
-                else
-                {
-                    // Fallback connection string for development
-                    ConnectionString = "Data Source=DESKTOP-5UH7Q5H\\SQLEXPRESS01;Initial Catalog=RespondXDB;Integrated Security=True";
-                }
-            }
-            catch
-            {
-                // Fallback connection string
-                ConnectionString = "Data Source=DESKTOP-5UH7Q5H\\SQLEXPRESS01;Initial Catalog=RespondXDB;Integrated Security=True";
-            }
+            return setting.ConnectionString;
         }
 
         // ========== User Operations ==========
@@ -317,6 +305,24 @@ namespace RespondX.Helpers
             }
         }
 
+        /// <summary>
+        /// Creates the Learners profile row for a learner account if it is missing.
+        /// Progress, quiz attempts and certificates reference Learners, so they fail without it.
+        /// </summary>
+        public static void EnsureLearnerProfile(int userId)
+        {
+            using (var conn = new SqlConnection(ConnectionString))
+            using (var cmd = new SqlCommand(@"
+                IF NOT EXISTS (SELECT 1 FROM dbo.Learners WHERE LearnerID = @UserID)
+                   AND EXISTS (SELECT 1 FROM dbo.Users WHERE UserID = @UserID)
+                    INSERT INTO dbo.Learners (LearnerID, ExperienceYears) VALUES (@UserID, 0);", conn))
+            {
+                cmd.Parameters.AddWithValue("@UserID", userId);
+                conn.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+
         public static Models.Learner GetLearnerById(int learnerId)
         {
             try
@@ -425,6 +431,7 @@ namespace RespondX.Helpers
                 {
                     System.Diagnostics.Debug.WriteLine(stackTrace);
                 }
+                ErrorLog.Write(source, message, stackTrace);
             }
             catch { /* Silently fail */ }
         }

@@ -11,7 +11,7 @@ namespace RespondX.Learner
 {
     public partial class ModuleDetails : Page
     {
-        private string connString = ConfigurationManager.ConnectionStrings["DefaultConnection"]?.ConnectionString ?? "Data Source=DESKTOP-5UH7Q5H\\SQLEXPRESS01;Initial Catalog=RespondX;Integrated Security=True;TrustServerCertificate=True;";
+        private static string connString => DatabaseHelper.ConnectionString;
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -114,7 +114,7 @@ namespace RespondX.Learner
             lblCompletedLessons.Text = module.CompletedLessons.ToString();
             lblTotalLessons.Text = module.TotalLessons.ToString();
             
-            imgModuleCover.ImageUrl = string.IsNullOrEmpty(module.ThumbnailUrl) ? "~/Content/Images/default-module.jpg" : module.ThumbnailUrl;
+            imgModuleCover.ImageUrl = string.IsNullOrEmpty(module.ThumbnailUrl) ? "~/Content/Images/default-module.svg" : module.ThumbnailUrl;
 
             BindModuleMedia(module);
 

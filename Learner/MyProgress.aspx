@@ -18,7 +18,7 @@
                 <div class="stat-value"><asp:Label ID="lblOverallProgress" runat="server" Text="0"></asp:Label>%</div>
                 <div class="stat-label">Overall Progress</div>
                 <div class="progress">
-                    <div class="progress-bar" style="width: <asp:Label ID="lblOverallProgressBar" runat="server" Text="0"></asp:Label>%"></div>
+                    <div class="progress-bar" style="width: <asp:Literal ID="lblOverallProgressBar" runat="server" Text="0"></asp:Literal>%"></div>
                 </div>
             </div>
             <div class="progress-stat">

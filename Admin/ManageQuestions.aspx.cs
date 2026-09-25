@@ -14,17 +14,7 @@ namespace RespondX.Admin
     {
         private int quizId;
 
-        private static string ConnectionString
-        {
-            get
-            {
-                var setting = ConfigurationManager.ConnectionStrings["DefaultConnection"]
-                    ?? ConfigurationManager.ConnectionStrings["RespondX"];
-                if (setting == null || string.IsNullOrWhiteSpace(setting.ConnectionString))
-                    throw new InvalidOperationException("The RespondX database connection is not configured.");
-                return setting.ConnectionString;
-            }
-        }
+        private static string ConnectionString => DatabaseHelper.ConnectionString;
 
         protected void Page_Load(object sender, EventArgs e)
         {

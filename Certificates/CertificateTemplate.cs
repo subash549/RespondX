@@ -232,13 +232,19 @@ namespace RespondX.Certificates
                     graphics.DrawEllipse(innerPen, x - radius + 15, y - radius + 15, (radius - 15) * 2, (radius - 15) * 2);
                 }
 
-                // Draw text
-                using (var font = new Font("Georgia", 10, FontStyle.Bold))
-                using (var brush = new SolidBrush(Color.FromArgb(250, 248, 242)))
+                // Draw a check mark as vector lines (not a font glyph, which depends on installed fonts).
+                using (var checkPen = new Pen(Color.FromArgb(250, 248, 242), Math.Max(3f, radius / 6f)))
                 {
-                    var text = "✓";
-                    var size = graphics.MeasureString(text, font);
-                    graphics.DrawString(text, font, brush, x - size.Width / 2, y - size.Height / 2 - 5);
+                    checkPen.StartCap = System.Drawing.Drawing2D.LineCap.Round;
+                    checkPen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
+                    checkPen.LineJoin = System.Drawing.Drawing2D.LineJoin.Round;
+                    float unit = radius / 3f;
+                    graphics.DrawLines(checkPen, new[]
+                    {
+                        new PointF(x - unit, y),
+                        new PointF(x - unit / 4f, y + unit * 0.8f),
+                        new PointF(x + unit * 1.1f, y - unit * 0.8f)
+                    });
                 }
             }
         }
@@ -374,9 +380,10 @@ namespace RespondX.Certificates
                         color: #faf8f2;
                         border: 2px solid #faf8f2;
                         box-shadow: 0 0 0 2px #c9a84c;
-                        line-height: 80px;
+                        line-height: 0;
                         text-align: center;
-                        font-size: 40px;
+                        padding-top: 20px;
+                        box-sizing: border-box;
                         margin: 20px auto;
                     }}
                 </style>
@@ -389,7 +396,7 @@ namespace RespondX.Certificates
                     </div>
                     
                     <div class='certificate-body'>
-                        <div class='seal'>✓</div>
+                        <div class='seal'><svg viewBox='0 0 24 24' width='40' height='40' aria-hidden='true'><path d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='#faf8f2' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/></svg></div>
                         <h2>This is to certify that</h2>
                         <h2 style='color:#192a46;font-size:32px;'>{HttpUtility.HtmlEncode(certificate.LearnerName ?? string.Empty)}</h2>
                         <p>has successfully completed the training module:</p>

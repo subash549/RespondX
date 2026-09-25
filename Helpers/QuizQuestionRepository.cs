@@ -11,18 +11,7 @@ namespace RespondX.Helpers
     {
         private const int LearnerQuestionIdOffset = 1000000;
 
-        private static string ConnectionString
-        {
-            get
-            {
-                var setting = ConfigurationManager.ConnectionStrings["DefaultConnection"]
-                    ?? ConfigurationManager.ConnectionStrings["RespondX"];
-                if (setting == null || string.IsNullOrWhiteSpace(setting.ConnectionString))
-                    throw new InvalidOperationException("The RespondX database connection is not configured.");
-
-                return setting.ConnectionString;
-            }
-        }
+        private static string ConnectionString => DatabaseHelper.ConnectionString;
 
         public static List<QuestionItem> GetActiveQuestions(int quizId)
         {

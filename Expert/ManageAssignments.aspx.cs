@@ -11,11 +11,11 @@ namespace RespondX.Expert
 {
     public partial class ManageAssignments : Page
     {
-        private string connString = ConfigurationManager.ConnectionStrings["DefaultConnection"]?.ConnectionString ?? "Data Source=DESKTOP-5UH7Q5H\\SQLEXPRESS01;Initial Catalog=RespondX;Integrated Security=True;TrustServerCertificate=True;";
+        private static string connString => DatabaseHelper.ConnectionString;
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (!AuthorizationHelper.RequireRole("Expert") && !AuthorizationHelper.RequireRole("Admin"))
+            if (!AuthorizationHelper.RequireAnyRole("Expert", "Admin"))
                 return;
 
             if (!IsPostBack)
@@ -106,7 +106,9 @@ namespace RespondX.Expert
 
         protected void rptAssignments_ItemCommand(object source, RepeaterCommandEventArgs e)
         {
-            int assignmentId = int.Parse(e.CommandArgument.ToString());
+            int assignmentId;
+            if (!int.TryParse(Convert.ToString(e.CommandArgument), out assignmentId))
+                return;
 
             if (e.CommandName == "Edit")
             {
@@ -130,9 +132,13 @@ namespace RespondX.Expert
                     {
                         if (reader.Read())
                         {
+                            ClearForm();
                             lblModalTitle.Text = "Edit Assignment";
                             hfAssignmentID.Value = assignmentId.ToString();
-                            ddlModule.SelectedValue = reader["ModuleID"].ToString();
+                            string moduleValue = reader["ModuleID"].ToString();
+                            if (ddlModule.Items.FindByValue(moduleValue) == null)
+                                ddlModule.Items.Add(new ListItem("Module #" + moduleValue + " (inactive)", moduleValue));
+                            ddlModule.SelectedValue = moduleValue;
                             txtTitle.Text = reader["Title"].ToString();
                             txtDescription.Text = reader["Description"].ToString();
                             txtDueDate.Text = Convert.ToDateTime(reader["DueDate"]).ToString("yyyy-MM-dd");
@@ -148,63 +154,94 @@ namespace RespondX.Expert
 
         private void ToggleAssignment(int assignmentId)
         {
-            using (var conn = new SqlConnection(connString))
+            try
             {
-                using (var cmd = new SqlCommand("UPDATE Assignments SET IsActive = ~IsActive WHERE AssignmentID = @ID", conn))
+                using (var conn = new SqlConnection(connString))
+                using (var cmd = new SqlCommand("UPDATE Assignments SET IsActive = CASE WHEN IsActive = 1 THEN 0 ELSE 1 END WHERE AssignmentID = @ID", conn))
                 {
                     cmd.Parameters.AddWithValue("@ID", assignmentId);
                     conn.Open();
                     cmd.ExecuteNonQuery();
                 }
+                ShowSuccess("Assignment status updated.");
             }
-            ShowSuccess("Assignment status updated successfully");
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Toggle assignment", ex.Message, ex.StackTrace);
+                ShowError("Unable to update this assignment. Please try again.");
+            }
             LoadAssignments();
         }
 
         protected void btnSaveAssignment_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrEmpty(txtTitle.Text.Trim()) || string.IsNullOrEmpty(ddlModule.SelectedValue))
+            string title = txtTitle.Text.Trim();
+            string description = txtDescription.Text.Trim();
+            int moduleId;
+            int maxScore = 100;
+            DateTime dueDate = DateTime.Today.AddDays(7);
+
+            if (title.Length == 0 || title.Length > 200 || !int.TryParse(ddlModule.SelectedValue, out moduleId))
             {
-                ShowError("Title and Module are required.");
+                ShowFormError("Choose a module and enter a title of up to 200 characters.");
+                return;
+            }
+            if (txtMaxScore.Text.Trim().Length > 0 &&
+                (!int.TryParse(txtMaxScore.Text.Trim(), out maxScore) || maxScore < 1 || maxScore > 1000))
+            {
+                ShowFormError("Max score must be a whole number between 1 and 1000.");
+                return;
+            }
+            if (txtDueDate.Text.Trim().Length > 0 && !DateTime.TryParse(txtDueDate.Text.Trim(), out dueDate))
+            {
+                ShowFormError("Enter a valid due date.");
                 return;
             }
 
             int assignmentId;
             bool isNew = !int.TryParse(hfAssignmentID.Value, out assignmentId) || assignmentId == 0;
 
-            using (var conn = new SqlConnection(connString))
+            try
             {
-                string query = isNew ? 
-                    @"INSERT INTO Assignments (ModuleID, Title, Description, DueDate, MaxScore, IsActive) 
-                      VALUES (@ModuleID, @Title, @Description, @DueDate, @MaxScore, @IsActive)" : 
-                    @"UPDATE Assignments SET ModuleID = @ModuleID, Title = @Title, Description = @Description, 
-                             DueDate = @DueDate, MaxScore = @MaxScore, IsActive = @IsActive 
-                      WHERE AssignmentID = @ID";
-
-                using (var cmd = new SqlCommand(query, conn))
+                using (var conn = new SqlConnection(connString))
+                using (var cmd = new SqlCommand(isNew
+                    ? @"INSERT INTO Assignments (ModuleID, Title, Description, DueDate, MaxScore, IsActive)
+                        VALUES (@ModuleID, @Title, @Description, @DueDate, @MaxScore, @IsActive)"
+                    : @"UPDATE Assignments SET ModuleID = @ModuleID, Title = @Title, Description = @Description,
+                               DueDate = @DueDate, MaxScore = @MaxScore, IsActive = @IsActive
+                        WHERE AssignmentID = @ID", conn))
                 {
-                    cmd.Parameters.AddWithValue("@ModuleID", int.Parse(ddlModule.SelectedValue));
-                    cmd.Parameters.AddWithValue("@Title", txtTitle.Text.Trim());
-                    cmd.Parameters.AddWithValue("@Description", txtDescription.Text.Trim());
-                    cmd.Parameters.AddWithValue("@DueDate", string.IsNullOrEmpty(txtDueDate.Text) ? DateTime.Now.AddDays(7) : DateTime.Parse(txtDueDate.Text));
-                    cmd.Parameters.AddWithValue("@MaxScore", string.IsNullOrEmpty(txtMaxScore.Text) ? 100 : int.Parse(txtMaxScore.Text));
+                    cmd.Parameters.AddWithValue("@ModuleID", moduleId);
+                    cmd.Parameters.AddWithValue("@Title", title);
+                    cmd.Parameters.AddWithValue("@Description", description);
+                    cmd.Parameters.AddWithValue("@DueDate", dueDate);
+                    cmd.Parameters.AddWithValue("@MaxScore", maxScore);
                     cmd.Parameters.AddWithValue("@IsActive", chkIsActive.Checked);
-                    
                     if (!isNew)
-                    {
                         cmd.Parameters.AddWithValue("@ID", assignmentId);
-                    }
-                    
+
                     conn.Open();
                     cmd.ExecuteNonQuery();
                 }
             }
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Save assignment", ex.Message, ex.StackTrace);
+                ShowFormError("Unable to save this assignment. Please try again.");
+                return;
+            }
 
-            ShowSuccess(isNew ? "Assignment added successfully" : "Assignment updated successfully");
+            ShowSuccess(isNew ? "Assignment added." : "Assignment updated.");
             ClearForm();
             LoadAssignments();
+            UiHelper.HideModal(this, "modalAssignment");
+        }
 
-            ScriptManager.RegisterStartupScript(this, GetType(), "hideModal", "$('#modalAssignment').modal('hide');", true);
+        private void ShowFormError(string message)
+        {
+            pnlModalError.Visible = true;
+            lblModalError.Text = Server.HtmlEncode(message);
+            UiHelper.ShowModal(this, "modalAssignment");
         }
 
         private void ClearForm()
@@ -217,6 +254,7 @@ namespace RespondX.Expert
             txtMaxScore.Text = "";
             chkIsActive.Checked = true;
             lblModalTitle.Text = "Add Assignment";
+            pnlModalError.Visible = false;
         }
 
         protected void btnAddAssignment_Click(object sender, EventArgs e)

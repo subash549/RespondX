@@ -1,4 +1,5 @@
 using System;
+using System.Web;
 using System.Web.UI;
 using RespondX.Helpers;
 
@@ -44,6 +45,18 @@ namespace RespondX
                 phAdminLinks.Visible = false;
                 phExpertLinks.Visible = false;
             }
+        }
+
+        protected void ScriptManager1_AsyncPostBackError(object sender, AsyncPostBackErrorEventArgs e)
+        {
+            // Partial postbacks bypass Application_Error, so log here and send the browser
+            // a generic message (RespondX.js shows it as a toast).
+            var ex = e.Exception;
+            if (ex is HttpUnhandledException && ex.InnerException != null)
+                ex = ex.InnerException;
+
+            ErrorLog.Write(Context, ex);
+            ScriptManager1.AsyncPostBackErrorMessage = "Something went wrong. Please try again.";
         }
     }
 }

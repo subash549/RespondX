@@ -47,6 +47,18 @@ namespace RespondX
                         return;
                     }
 
+                    if (string.Equals(user.Role, "Learner", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            DatabaseHelper.EnsureLearnerProfile(user.UserID);
+                        }
+                        catch (Exception ex)
+                        {
+                            DatabaseHelper.LogError("Ensure learner profile", ex.Message, ex.StackTrace);
+                        }
+                    }
+
                     // Create session
                     SessionHelper.CreateSession(user);
                     DatabaseHelper.UpdateLastLogin(user.UserID);

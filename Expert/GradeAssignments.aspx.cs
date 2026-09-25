@@ -11,11 +11,11 @@ namespace RespondX.Expert
 {
     public partial class GradeAssignments : Page
     {
-        private string connString = ConfigurationManager.ConnectionStrings["DefaultConnection"]?.ConnectionString ?? "Data Source=DESKTOP-5UH7Q5H\\SQLEXPRESS01;Initial Catalog=RespondX;Integrated Security=True;TrustServerCertificate=True;";
+        private static string connString => DatabaseHelper.ConnectionString;
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (!AuthorizationHelper.RequireRole("Expert") && !AuthorizationHelper.RequireRole("Admin"))
+            if (!AuthorizationHelper.RequireAnyRole("Expert", "Admin"))
                 return;
 
             if (!IsPostBack)
@@ -77,13 +77,19 @@ namespace RespondX.Expert
 
         protected void rptSubmissions_ItemCommand(object source, RepeaterCommandEventArgs e)
         {
-            int submissionId = int.Parse(e.CommandArgument.ToString());
+            int submissionId;
+            if (!int.TryParse(Convert.ToString(e.CommandArgument), out submissionId))
+                return;
 
             if (e.CommandName == "Grade")
             {
                 using (var conn = new SqlConnection(connString))
                 {
-                    var query = "SELECT Content, FileUrl, Score, Feedback FROM AssignmentSubmissions WHERE SubmissionID = @ID";
+                    var query = @"
+                        SELECT s.Content, s.FileUrl, s.Score, s.Feedback, a.MaxScore
+                        FROM AssignmentSubmissions s
+                        INNER JOIN Assignments a ON a.AssignmentID = s.AssignmentID
+                        WHERE s.SubmissionID = @ID";
                     using (var cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@ID", submissionId);
@@ -93,10 +99,14 @@ namespace RespondX.Expert
                             if (reader.Read())
                             {
                                 hfSubmissionID.Value = submissionId.ToString();
-                                litContent.Text = reader["Content"].ToString();
-                                
+                                hfMaxScore.Value = reader["MaxScore"].ToString();
+                                lblMaxScore.Text = "(out of " + reader["MaxScore"] + ")";
+                                pnlModalError.Visible = false;
+                                // Learner text is untrusted: encode it and keep line breaks.
+                                litContent.Text = Server.HtmlEncode(reader["Content"].ToString()).Replace("\n", "<br />");
+
                                 string fileUrl = reader["FileUrl"].ToString();
-                                if (!string.IsNullOrEmpty(fileUrl))
+                                if (IsSafeLink(fileUrl))
                                 {
                                     divFile.Visible = true;
                                     hlFile.NavigateUrl = fileUrl;
@@ -117,38 +127,68 @@ namespace RespondX.Expert
             }
         }
 
+        private static bool IsSafeLink(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                return false;
+            if (url.StartsWith("~/") || (url.StartsWith("/") && !url.StartsWith("//")))
+                return true;
+
+            Uri uri;
+            return Uri.TryCreate(url, UriKind.Absolute, out uri) &&
+                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+        }
+
         protected void btnSaveGrade_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrEmpty(txtScore.Text))
+            int submissionId, score, maxScore;
+            if (!int.TryParse(hfSubmissionID.Value, out submissionId))
             {
-                ShowError("Score is required.");
+                ShowError("Select a submission to grade.");
+                return;
+            }
+            if (!int.TryParse(hfMaxScore.Value, out maxScore))
+                maxScore = int.MaxValue;
+            if (!int.TryParse(txtScore.Text.Trim(), out score) || score < 0 || score > maxScore)
+            {
+                ShowGradeError(maxScore == int.MaxValue
+                    ? "Enter a score of 0 or higher."
+                    : "Enter a score between 0 and " + maxScore + ".");
                 return;
             }
 
-            int submissionId = int.Parse(hfSubmissionID.Value);
-
-            using (var conn = new SqlConnection(connString))
+            try
             {
-                var query = @"
-                    UPDATE AssignmentSubmissions 
-                    SET Score = @Score, Feedback = @Feedback, Status = 'Graded'
-                    WHERE SubmissionID = @ID";
-
-                using (var cmd = new SqlCommand(query, conn))
+                using (var conn = new SqlConnection(connString))
+                using (var cmd = new SqlCommand(@"
+                    UPDATE AssignmentSubmissions
+                    SET Score = @Score, Feedback = @Feedback, Status = N'Graded'
+                    WHERE SubmissionID = @ID", conn))
                 {
-                    cmd.Parameters.AddWithValue("@Score", int.Parse(txtScore.Text));
+                    cmd.Parameters.AddWithValue("@Score", score);
                     cmd.Parameters.AddWithValue("@Feedback", txtFeedback.Text.Trim());
                     cmd.Parameters.AddWithValue("@ID", submissionId);
-                    
                     conn.Open();
                     cmd.ExecuteNonQuery();
                 }
             }
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Save grade", ex.Message, ex.StackTrace);
+                ShowGradeError("Unable to save this grade. Please try again.");
+                return;
+            }
 
-            ShowSuccess("Grade saved successfully");
+            ShowSuccess("Grade saved.");
             LoadSubmissions();
+            UiHelper.HideModal(this, "modalGrade");
+        }
 
-            ScriptManager.RegisterStartupScript(this, GetType(), "hideModal", "$('#modalGrade').modal('hide');", true);
+        private void ShowGradeError(string message)
+        {
+            pnlModalError.Visible = true;
+            lblModalError.Text = Server.HtmlEncode(message);
+            UiHelper.ShowModal(this, "modalGrade");
         }
 
         private void ShowSuccess(string message)

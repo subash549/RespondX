@@ -92,7 +92,7 @@ namespace RespondX.Helpers
         {
             try
             {
-                using (var conn = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+                using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
                 {
                     var query = "SELECT COUNT(*) FROM Certificates WHERE VerificationCode = @Code AND IsActive = 1";
                     using (var cmd = new SqlCommand(query, conn))
@@ -116,7 +116,7 @@ namespace RespondX.Helpers
         {
             try
             {
-                using (var conn = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+                using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
                 {
                     var query = @"
                         SELECT c.*, u.FirstName + ' ' + u.LastName as LearnerName, m.Title as ModuleTitle
@@ -209,7 +209,7 @@ namespace RespondX.Helpers
         {
             try
             {
-                using (var conn = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+                using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
                 using (var cmd = new SqlCommand(query, conn))
                 {
                     addParameters(cmd);
@@ -271,7 +271,7 @@ namespace RespondX.Helpers
         {
             try
             {
-                using (var conn = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+                using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
                 {
                     var query = @"
                         INSERT INTO Certificates (LearnerID, ModuleID, CertificateNumber, IssueDate, ExpiryDate, 
@@ -315,7 +315,7 @@ namespace RespondX.Helpers
 
             try
             {
-                using (var conn = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+                using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
                 {
                     var query = @"
                         SELECT c.*, u.FirstName + ' ' + u.LastName as LearnerName, m.Title as ModuleTitle
@@ -372,7 +372,7 @@ namespace RespondX.Helpers
 
             try
             {
-                using (var conn = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+                using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
                 {
                     var query = @"
                         SELECT c.*, u.FirstName + ' ' + u.LastName as LearnerName, m.Title as ModuleTitle
@@ -425,7 +425,7 @@ namespace RespondX.Helpers
         {
             try
             {
-                using (var conn = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+                using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
                 {
                     var query = "UPDATE Certificates SET IsActive = 0 WHERE CertificateID = @CertificateID";
                     using (var cmd = new SqlCommand(query, conn))

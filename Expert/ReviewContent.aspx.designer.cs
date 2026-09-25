@@ -57,7 +57,7 @@ namespace RespondX.Expert
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblPriorityClass;
+        protected global::System.Web.UI.WebControls.Literal lblPriorityClass;
 
         /// <summary>
         /// lblPriority control.

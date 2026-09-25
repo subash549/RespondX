@@ -335,3 +335,227 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+/* ========== Shared CRUD page layout (Admin + Expert management pages) ========== */
+.page-header {
+	margin: 28px 0 22px;
+}
+
+	.page-header h1 {
+		margin-bottom: 4px;
+		font-size: 26px;
+	}
+
+		.page-header h1 i {
+			margin-right: 6px;
+			color: var(--accent);
+		}
+
+	.page-header p {
+		margin: 0;
+		color: var(--muted);
+	}
+
+.filter-bar {
+	justify-content: space-between;
+}
+
+	.filter-bar .filter-group {
+		flex-wrap: wrap;
+	}
+
+.admin-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+	.admin-table thead {
+		background: #f8fafc;
+	}
+
+	.admin-table th {
+		padding: 12px 15px;
+		color: var(--ink);
+		font-size: 13px;
+		font-weight: 600;
+		text-align: left;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+	}
+
+	.admin-table td {
+		padding: 12px 15px;
+		border-top: 1px solid var(--border);
+		vertical-align: middle;
+	}
+
+	.admin-table tbody tr {
+		transition: background-color 0.15s ease;
+	}
+
+		.admin-table tbody tr:hover {
+			background: #f8fafc;
+		}
+
+	.admin-table .row-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+
+	.admin-table .cell-sub {
+		display: block;
+		color: var(--muted);
+		font-size: 12px;
+	}
+
+.form-row {
+	display: flex;
+	gap: 15px;
+}
+
+	.form-row .form-group {
+		flex: 1;
+	}
+
+.form-text {
+	display: block;
+	margin-top: 4px;
+	color: var(--muted);
+	font-size: 12px;
+}
+
+.text-center {
+	text-align: center;
+}
+
+.d-block {
+	display: block;
+}
+
+.required {
+	color: var(--danger);
+}
+
+/* Cards used by Modules / Scenarios grids */
+.crud-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+	gap: 20px;
+}
+
+.crud-card {
+	display: flex;
+	flex-direction: column;
+	padding: 20px;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-top: 4px solid var(--accent);
+	border-radius: 10px;
+	box-shadow: var(--shadow-sm);
+	transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+	.crud-card:hover {
+		box-shadow: var(--shadow-md);
+		transform: translateY(-2px);
+	}
+
+	.crud-card.is-inactive {
+		border-top-color: var(--border-strong);
+		opacity: 0.85;
+	}
+
+.crud-card-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 10px;
+	margin-bottom: 10px;
+}
+
+	.crud-card-header h3 {
+		margin: 0;
+		color: var(--ink);
+		font-size: 18px;
+	}
+
+.crud-card-body {
+	flex: 1;
+	margin-bottom: 12px;
+	color: var(--muted);
+	font-size: 14px;
+}
+
+.crud-card-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+	margin-bottom: 14px;
+	color: var(--muted);
+	font-size: 13px;
+}
+
+	.crud-card-meta i {
+		margin-right: 4px;
+	}
+
+.crud-card-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* Option lists inside modals (scenario options) */
+.option-list {
+	margin: 0 0 16px;
+	padding: 0;
+	list-style: none;
+}
+
+	.option-list li {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 10px 12px;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		margin-bottom: 8px;
+		background: #fff;
+	}
+
+		.option-list li.is-correct {
+			border-color: var(--success);
+			background: var(--success-tint);
+		}
+
+	.option-list .option-text {
+		flex: 1;
+	}
+
+	.option-list .option-feedback {
+		display: block;
+		color: var(--muted);
+		font-size: 12px;
+	}
+
+@media (max-width: 768px) {
+	.filter-bar {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.form-row {
+		flex-direction: column;
+		gap: 0;
+	}
+
+	.crud-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.admin-table th:nth-child(n+4):not(:last-child),
+	.admin-table td:nth-child(n+4):not(:last-child) {
+		display: none;
+	}
+}

@@ -1,5 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
 using System.Web.UI;
 using RespondX.Helpers;
 using RespondX.Models;
@@ -21,71 +23,69 @@ namespace RespondX.Learner
 
         private void LoadScenarios()
         {
-            var scenarios = GetScenarios();
+            var scenarios = new List<ScenarioItem>();
+            var learnerId = SessionHelper.GetCurrentUserId().GetValueOrDefault();
+            int difficulty;
+            bool filterDifficulty = int.TryParse(ddlDifficulty.SelectedValue, out difficulty);
+            string search = txtSearch.Text.Trim();
 
-            var difficulty = ddlDifficulty.SelectedValue;
-            if (difficulty != "All")
+            try
             {
-                scenarios = scenarios.FindAll(s => s.Difficulty == difficulty);
+                using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
+                using (var cmd = new SqlCommand(@"
+                    SELECT s.ScenarioID, s.Title, s.Description, s.ScenarioText, s.DifficultyLevel, m.Title AS ModuleTitle,
+                           (SELECT TOP 1 lp.Status FROM dbo.LearnerProgress lp
+                            WHERE lp.LearnerID = @LearnerID AND lp.ScenarioID = s.ScenarioID
+                            ORDER BY lp.LastAccessedAt DESC) AS LearnerStatus
+                    FROM dbo.Scenarios s
+                    INNER JOIN dbo.Modules m ON m.ModuleID = s.ModuleID
+                    WHERE s.IsActive = 1 AND m.IsActive = 1
+                      AND EXISTS (SELECT 1 FROM dbo.ScenarioOptions o WHERE o.ScenarioID = s.ScenarioID)
+                      AND (@Difficulty IS NULL OR s.DifficultyLevel = @Difficulty)
+                      AND (@Search IS NULL OR s.Title LIKE @Search OR s.Description LIKE @Search OR m.Title LIKE @Search)
+                    ORDER BY m.ModuleOrder, s.ScenarioOrder, s.ScenarioID;", conn))
+                {
+                    cmd.Parameters.Add("@LearnerID", SqlDbType.Int).Value = learnerId;
+                    cmd.Parameters.Add("@Difficulty", SqlDbType.Int).Value = filterDifficulty ? (object)difficulty : DBNull.Value;
+                    cmd.Parameters.Add("@Search", SqlDbType.NVarChar, 110).Value =
+                        string.IsNullOrEmpty(search) ? (object)DBNull.Value : "%" + search + "%";
+                    conn.Open();
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string difficultyLabel = UiHelper.DifficultyLabel(Convert.ToInt32(reader["DifficultyLevel"]));
+                            string learnerStatus = Convert.ToString(reader["LearnerStatus"]);
+                            bool completed = learnerStatus == "Completed" || learnerStatus == "Certified";
+                            bool attempted = !completed && learnerStatus.Length > 0;
+                            string text = Convert.ToString(reader["ScenarioText"]);
+
+                            scenarios.Add(new ScenarioItem
+                            {
+                                ScenarioID = Convert.ToInt32(reader["ScenarioID"]),
+                                Title = Convert.ToString(reader["Title"]),
+                                Description = Convert.ToString(reader["Description"]),
+                                Module = Convert.ToString(reader["ModuleTitle"]),
+                                Difficulty = difficultyLabel,
+                                DifficultyClass = difficultyLabel.ToLowerInvariant(),
+                                // Reading time plus a couple of minutes to decide.
+                                TimeEstimate = Math.Max(3, text.Split((char[])null, StringSplitOptions.RemoveEmptyEntries).Length / 200 + 2),
+                                Status = completed ? "Completed" : attempted ? "Try again" : "Not started",
+                                StatusBadge = completed ? "badge-success" : attempted ? "badge-warning" : "badge-secondary"
+                            });
+                        }
+                    }
+                }
             }
-
-            var search = txtSearch.Text.Trim();
-            if (!string.IsNullOrEmpty(search))
+            catch (Exception ex)
             {
-                scenarios = scenarios.FindAll(s =>
-                    s.Title.ToLower().Contains(search.ToLower()) ||
-                    s.Description.ToLower().Contains(search.ToLower())
-                );
+                DatabaseHelper.LogError("Load learner scenarios", ex.Message, ex.StackTrace);
+                UiHelper.Notify(this, "Scenarios could not be loaded right now. Please try again.", "error");
             }
 
             rptScenarios.DataSource = scenarios;
             rptScenarios.DataBind();
-        }
-
-        private List<ScenarioItem> GetScenarios()
-        {
-            return new List<ScenarioItem>
-            {
-                new ScenarioItem
-                {
-                    ScenarioID = 1,
-                    Title = "Office Emergency Response",
-                    Description = "Handle a medical emergency in an office environment with multiple people involved.",
-                    Module = "Emergency Response",
-                    Difficulty = "Beginner",
-                    DifficultyClass = "beginner",
-                    TimeEstimate = 15,
-                    Status = "Not Started",
-                    StatusBadge = "badge-secondary",
-                    Attempts = 0
-                },
-                new ScenarioItem
-                {
-                    ScenarioID = 2,
-                    Title = "Home Fire Emergency",
-                    Description = "Respond to a fire emergency in a residential setting with family members.",
-                    Module = "Fire Safety",
-                    Difficulty = "Intermediate",
-                    DifficultyClass = "intermediate",
-                    TimeEstimate = 20,
-                    Status = "In Progress",
-                    StatusBadge = "badge-warning",
-                    Attempts = 2
-                },
-                new ScenarioItem
-                {
-                    ScenarioID = 3,
-                    Title = "Natural Disaster Response",
-                    Description = "Coordinate emergency response for a natural disaster affecting a community.",
-                    Module = "Disaster Management",
-                    Difficulty = "Advanced",
-                    DifficultyClass = "advanced",
-                    TimeEstimate = 30,
-                    Status = "Completed",
-                    StatusBadge = "badge-success",
-                    Attempts = 3
-                }
-            };
+            pnlNoScenarios.Visible = scenarios.Count == 0;
         }
 
         protected void ddlDifficulty_SelectedIndexChanged(object sender, EventArgs e)

@@ -9,15 +9,10 @@ namespace RespondX.Helpers
 {
     public static class ModuleMediaHelper
     {
-        private static string ConnectionString =>
-            ConfigurationManager.ConnectionStrings["DefaultConnection"]?.ConnectionString
-            ?? ConfigurationManager.ConnectionStrings["RespondX"]?.ConnectionString;
+        private static string ConnectionString => DatabaseHelper.ConnectionString;
 
         public static void EnsureModuleMediaColumns()
         {
-            if (string.IsNullOrEmpty(ConnectionString))
-                return;
-
             try
             {
                 using (var conn = new SqlConnection(ConnectionString))

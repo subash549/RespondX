@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Web;
 using System.Web.Security;
 using System.Web.SessionState;
@@ -9,8 +8,6 @@ namespace RespondX
 {
     public class Global : System.Web.HttpApplication
     {
-        private static readonly object ErrorLogLock = new object();
-
         protected void Application_Start(object sender, EventArgs e)
         {
             Application["ApplicationName"] = "RespondX";
@@ -48,40 +45,32 @@ namespace RespondX
                 return; // Ignore ThreadAbortException
             }
 
-            // Also check if the request is already for Error.aspx to prevent infinite loops
-            if (Request.Path.IndexOf("Error.aspx", StringComparison.OrdinalIgnoreCase) >= 0)
+            // If the error page itself fails, don't redirect back to it (friendly URLs serve it as /Error).
+            string requestPath = Request.Path.TrimEnd('/');
+            if (requestPath.EndsWith("/Error", StringComparison.OrdinalIgnoreCase) ||
+                requestPath.EndsWith("/Error.aspx", StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
 
-            if (ex != null)
+            if (ex == null)
             {
-                DatabaseHelper.LogError("Global Error", ex.Message, ex.StackTrace);
-                string errorReference = Guid.NewGuid().ToString("N");
-                try
-                {
-                    string logPath = Server.MapPath("~/App_Data/RespondX_Errors.log");
-                    string logEntry = string.Format(
-                        "[{0:u}] Reference {1}; Path {2}{3}{4}{3}{3}",
-                        DateTime.UtcNow,
-                        errorReference,
-                        Request.Url == null ? string.Empty : Request.Url.AbsolutePath,
-                        Environment.NewLine,
-                        ex);
-                    lock (ErrorLogLock)
-                    {
-                        File.AppendAllText(logPath, logEntry);
-                    }
-                }
-                catch
-                {
-                    // Logging must not prevent the error page from being shown.
-                }
-
-                Server.ClearError();
-                Response.Redirect("~/Error.aspx?ref=" + HttpUtility.UrlEncode(errorReference), false);
-                Context.ApplicationInstance.CompleteRequest();
+                return;
             }
+
+            var httpException = ex as HttpException;
+            if (httpException != null && httpException.GetHttpCode() == 404)
+            {
+                Server.ClearError();
+                Response.Redirect("~/Error.aspx?code=404", false);
+                Context.ApplicationInstance.CompleteRequest();
+                return;
+            }
+
+            string errorReference = ErrorLog.Write(Context, ex);
+            Server.ClearError();
+            Response.Redirect("~/Error.aspx?ref=" + HttpUtility.UrlEncode(errorReference), false);
+            Context.ApplicationInstance.CompleteRequest();
         }
 
         protected void Session_End(object sender, EventArgs e)
