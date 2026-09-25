@@ -8,7 +8,10 @@ namespace RespondX
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (SessionHelper.IsUserLoggedIn())
+            bool isLoggedIn = SessionHelper.IsUserLoggedIn();
+            phPublicNavigation.Visible = !isLoggedIn;
+
+            if (isLoggedIn)
             {
                 phGuestLinks.Visible = false;
                 
@@ -35,6 +38,7 @@ namespace RespondX
             }
             else
             {
+                phPublicNavigation.Visible = true;
                 phGuestLinks.Visible = true;
                 phLearnerLinks.Visible = false;
                 phAdminLinks.Visible = false;

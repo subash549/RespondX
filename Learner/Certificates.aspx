@@ -41,10 +41,7 @@
                         </div>
                         <div class="certificate-actions">
                             <a href='<%# Eval("DownloadUrl") %>' class="btn btn-primary btn-sm">
-                                <i class="fas fa-download"></i> Download PDF
-                            </a>
-                            <a href='<%# Eval("ViewUrl") %>' class="btn btn-info btn-sm" target="_blank">
-                                <i class="fas fa-eye"></i> View
+                                <i class="fas fa-download"></i> Download Certificate
                             </a>
                             <asp:Button ID="btnVerify" runat="server" Text="Verify" CssClass="btn btn-secondary btn-sm" OnClick="btnVerify_Click" CommandArgument='<%# Eval("VerificationCode") %>' />
                         </div>
@@ -55,7 +52,7 @@
                         <div class="no-certificates">
                             <i class="fas fa-certificate fa-4x text-muted"></i>
                             <h3>No Certificates Yet</h3>
-                            <p>Complete modules and pass quizzes to earn certificates.</p>
+                            <p>Complete a module and score above 80% on its quiz to earn a certificate.</p>
                             <a href="Modules.aspx" class="btn btn-primary">Start Learning</a>
                         </div>
                     </asp:Panel>

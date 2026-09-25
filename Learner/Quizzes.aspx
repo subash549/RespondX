@@ -47,6 +47,9 @@
                             <span class="badge <%# Eval("StatusBadge") %>"><%# Eval("Status") %></span>
                             <%# Eval("Score") != null ? $"<span class='badge badge-info'>Score: {Eval("Score")}%</span>" : "" %>
                         </div>
+                        <asp:Panel ID="pnlQuizLock" runat="server" CssClass="quiz-lock-message" Visible='<%# !Convert.ToBoolean(Eval("ModuleCompleted")) %>'>
+                            Complete all lessons in this module to unlock its quiz.
+                        </asp:Panel>
                         <div class="quiz-actions">
                             <asp:Button ID="btnTakeQuiz" runat="server" Text='<%# Eval("ButtonText") %>' 
                                 CssClass='<%# Eval("ButtonClass") %>' 
@@ -57,7 +60,7 @@
                                 CssClass="btn btn-info btn-sm" 
                                 CommandArgument='<%# Eval("QuizID") %>' 
                                 OnClick="btnReview_Click" 
-                                Visible='<%# Eval("IsCompleted") %>' />
+                                Visible='<%# Convert.ToBoolean(Eval("IsCompleted")) && Convert.ToBoolean(Eval("ModuleCompleted")) %>' />
                         </div>
                     </div>
                 </ItemTemplate>
@@ -133,6 +136,11 @@
         .quiz-actions {
             display: flex;
             gap: 10px;
+        }
+        .quiz-lock-message {
+            color: #975a16;
+            font-size: 13px;
+            margin: -5px 0 12px;
         }
         .filter-bar {
             display: flex;

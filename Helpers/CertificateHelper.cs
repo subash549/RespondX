@@ -162,6 +162,89 @@ namespace RespondX.Helpers
             return null;
         }
 
+        public static Certificate GetEligibleCertificate(int certificateId, int learnerId, decimal minimumScoreExclusive)
+        {
+            const string query = @"
+                SELECT c.*, u.FirstName + N' ' + u.LastName AS LearnerName, m.Title AS ModuleTitle
+                FROM Certificates c
+                INNER JOIN Learners l ON c.LearnerID = l.LearnerID
+                INNER JOIN Users u ON l.LearnerID = u.UserID
+                INNER JOIN Modules m ON c.ModuleID = m.ModuleID
+                WHERE c.CertificateID = @CertificateID
+                  AND c.LearnerID = @LearnerID
+                  AND c.IsActive = 1
+                  AND c.Score > @MinimumScore;";
+
+            return GetSingleCertificate(query, cmd =>
+            {
+                cmd.Parameters.AddWithValue("@CertificateID", certificateId);
+                cmd.Parameters.AddWithValue("@LearnerID", learnerId);
+                cmd.Parameters.AddWithValue("@MinimumScore", minimumScoreExclusive);
+            });
+        }
+
+        public static Certificate GetEligibleCertificateForModule(int learnerId, int moduleId, decimal minimumScoreExclusive)
+        {
+            const string query = @"
+                SELECT TOP 1 c.*, u.FirstName + N' ' + u.LastName AS LearnerName, m.Title AS ModuleTitle
+                FROM Certificates c
+                INNER JOIN Learners l ON c.LearnerID = l.LearnerID
+                INNER JOIN Users u ON l.LearnerID = u.UserID
+                INNER JOIN Modules m ON c.ModuleID = m.ModuleID
+                WHERE c.LearnerID = @LearnerID
+                  AND c.ModuleID = @ModuleID
+                  AND c.IsActive = 1
+                  AND c.Score > @MinimumScore
+                ORDER BY c.IssueDate DESC, c.CertificateID DESC;";
+
+            return GetSingleCertificate(query, cmd =>
+            {
+                cmd.Parameters.AddWithValue("@LearnerID", learnerId);
+                cmd.Parameters.AddWithValue("@ModuleID", moduleId);
+                cmd.Parameters.AddWithValue("@MinimumScore", minimumScoreExclusive);
+            });
+        }
+
+        private static Certificate GetSingleCertificate(string query, Action<SqlCommand> addParameters)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    addParameters(cmd);
+                    conn.Open();
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (!reader.Read())
+                            return null;
+
+                        return new Certificate
+                        {
+                            CertificateID = Convert.ToInt32(reader["CertificateID"]),
+                            LearnerID = Convert.ToInt32(reader["LearnerID"]),
+                            ModuleID = Convert.ToInt32(reader["ModuleID"]),
+                            CertificateNumber = reader["CertificateNumber"].ToString(),
+                            VerificationCode = reader["VerificationCode"].ToString(),
+                            IssueDate = Convert.ToDateTime(reader["IssueDate"]),
+                            ExpiryDate = reader["ExpiryDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(reader["ExpiryDate"]),
+                            IsActive = Convert.ToBoolean(reader["IsActive"]),
+                            Score = Convert.ToDecimal(reader["Score"]),
+                            PdfPath = reader["PdfPath"] == DBNull.Value ? null : reader["PdfPath"].ToString(),
+                            LearnerName = reader["LearnerName"].ToString(),
+                            ModuleTitle = reader["ModuleTitle"].ToString(),
+                            Issuer = "RespondX Training Institute"
+                        };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Eligible certificate retrieval error", ex.Message);
+                return null;
+            }
+        }
+
         /// <summary>
         /// Gets certificate image as base64 string
         /// </summary>

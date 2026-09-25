@@ -10,6 +10,8 @@
         <div class="page-header">
             <h1><i class="fas fa-list"></i> Manage Questions</h1>
             <p><asp:Label ID="lblQuizInfo" runat="server"></asp:Label></p>
+            <p class="text-muted">Every module has a quiz here. A default quiz is created for modules that do not have one yet. Use Modules → Quizzes to adjust its settings.</p>
+            <p class="text-muted">Built-in questions remain available to learners. Add questions or edit saved database questions for the selected quiz.</p>
         </div>
 
         <asp:Panel ID="pnlSuccess" runat="server" CssClass="alert alert-success" Visible="false">
@@ -22,7 +24,9 @@
 
         <div class="filter-bar">
             <div class="filter-group">
-                <asp:Button ID="btnBack" runat="server" Text="← Back to Quizzes" CssClass="btn btn-secondary" OnClick="btnBack_Click" />
+                <asp:Button ID="btnBack" runat="server" Text="Back to Admin" CssClass="btn btn-secondary" OnClick="btnBack_Click" />
+                <label>Quiz</label>
+                <asp:DropDownList ID="ddlQuiz" runat="server" CssClass="form-control" AutoPostBack="true" OnSelectedIndexChanged="ddlQuiz_SelectedIndexChanged" />
             </div>
             <div class="filter-group">
                 <asp:Button ID="btnAddQuestion" runat="server" Text="+ Add Question" CssClass="btn btn-success" OnClick="btnAddQuestion_Click" />
@@ -36,14 +40,12 @@
                         <div class="question-header">
                             <div class="question-info">
                                 <span class="question-number">Q<%# Container.ItemIndex + 1 %>.</span>
-                                <span class="question-text"><%# Eval("QuestionText") %></span>
+                                <span class="question-text"><%# Server.HtmlEncode(Convert.ToString(Eval("QuestionText"))) %></span>
                             </div>
                             <div class="question-badges">
                                 <span class="badge badge-info"><%# Eval("QuestionTypeDisplay") %></span>
                                 <span class="badge badge-secondary"><%# Eval("Points") %> pts</span>
-                                <span class="badge <%# Convert.ToBoolean(Eval("IsActive")) ? "badge-success" : "badge-secondary" %>">
-                                    <%# Convert.ToBoolean(Eval("IsActive")) ? "Active" : "Inactive" %>
-                                </span>
+                                <span class="badge badge-success">Saved</span>
                             </div>
                         </div>
                         <div class="question-options">
@@ -51,23 +53,21 @@
                                 <ItemTemplate>
                                     <div class="option-item-small">
                                         <span class="option-label"><%# Eval("OptionLabel") %>.</span>
-                                        <span class="option-text"><%# Eval("OptionText") %></span>
+                                        <span class="option-text"><%# Server.HtmlEncode(Convert.ToString(Eval("OptionText"))) %></span>
                                         <span class="badge <%# Convert.ToBoolean(Eval("IsCorrect")) ? "badge-success" : "badge-secondary" %>">
-                                            <%# Convert.ToBoolean(Eval("IsCorrect")) ? "✓ Correct" : "" %>
+                                            <%# Convert.ToBoolean(Eval("IsCorrect")) ? "Correct answer" : "" %>
                                         </span>
                                     </div>
                                 </ItemTemplate>
                             </asp:Repeater>
                         </div>
                         <div class="question-actions">
-                            <asp:Button ID="btnEdit" runat="server" Text="Edit" CssClass="btn btn-info btn-sm" CommandName="Edit" CommandArgument='<%# Eval("QuestionID") %>' />
-                            <asp:Button ID="btnToggle" runat="server" Text='<%# Convert.ToBoolean(Eval("IsActive")) ? "Deactivate" : "Activate" %>' CssClass='<%# Convert.ToBoolean(Eval("IsActive")) ? "btn btn-warning btn-sm" : "btn btn-success btn-sm" %>' CommandName="Toggle" CommandArgument='<%# Eval("QuestionID") %>' />
-                            <asp:Button ID="btnDelete" runat="server" Text="Delete" CssClass="btn btn-danger btn-sm" CommandName="Delete" CommandArgument='<%# Eval("QuestionID") %>' OnClientClick="return confirm('Are you sure you want to delete this question?');" />
+                            <asp:Button ID="btnEdit" runat="server" Text="Edit question" CssClass="btn btn-info btn-sm" CommandName="Edit" CommandArgument='<%# Eval("QuestionID") %>' />
                         </div>
                     </div>
                 </ItemTemplate>
                 <FooterTemplate>
-                    <asp:Label ID="lblNoQuestions" runat="server" Text="No questions found" Visible='<%# rptQuestions.Items.Count == 0 %>' CssClass="text-muted text-center d-block" />
+                    <asp:Label ID="lblNoQuestions" runat="server" Text="No admin-added questions for this quiz yet. Built-in questions remain available to learners." Visible='<%# rptQuestions.Items.Count == 0 %>' CssClass="text-muted text-center d-block" />
                 </FooterTemplate>
             </asp:Repeater>
         </div>
@@ -89,11 +89,7 @@
                         <div class="form-row">
                             <div class="form-group col-6">
                                 <label>Question Type</label>
-                                <asp:DropDownList ID="ddlQuestionType" runat="server" CssClass="form-control">
-                                    <asp:ListItem Value="MultipleChoice">Multiple Choice</asp:ListItem>
-                                    <asp:ListItem Value="TrueFalse">True/False</asp:ListItem>
-                                    <asp:ListItem Value="ShortAnswer">Short Answer</asp:ListItem>
-                                </asp:DropDownList>
+                                <div class="form-control-plaintext">Multiple choice</div>
                             </div>
                             <div class="form-group col-6">
                                 <label>Points</label>
@@ -101,33 +97,25 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>Options</label>
+                            <label>Four answer choices (select one correct answer)</label>
                             <div id="optionsContainer">
                                 <div class="option-input">
                                     <asp:TextBox ID="txtOption1" runat="server" CssClass="form-control" placeholder="Option A" />
-                                    <asp:CheckBox ID="chkCorrect1" runat="server" CssClass="ml-1" />
-                                    <label for="chkCorrect1">Correct</label>
+                                    <asp:RadioButton ID="rdoCorrect1" runat="server" GroupName="correctAnswer" Text="Correct answer" CssClass="ml-1" />
                                 </div>
                                 <div class="option-input mt-1">
                                     <asp:TextBox ID="txtOption2" runat="server" CssClass="form-control" placeholder="Option B" />
-                                    <asp:CheckBox ID="chkCorrect2" runat="server" CssClass="ml-1" />
-                                    <label for="chkCorrect2">Correct</label>
+                                    <asp:RadioButton ID="rdoCorrect2" runat="server" GroupName="correctAnswer" Text="Correct answer" CssClass="ml-1" />
                                 </div>
                                 <div class="option-input mt-1">
                                     <asp:TextBox ID="txtOption3" runat="server" CssClass="form-control" placeholder="Option C" />
-                                    <asp:CheckBox ID="chkCorrect3" runat="server" CssClass="ml-1" />
-                                    <label for="chkCorrect3">Correct</label>
+                                    <asp:RadioButton ID="rdoCorrect3" runat="server" GroupName="correctAnswer" Text="Correct answer" CssClass="ml-1" />
                                 </div>
                                 <div class="option-input mt-1">
                                     <asp:TextBox ID="txtOption4" runat="server" CssClass="form-control" placeholder="Option D" />
-                                    <asp:CheckBox ID="chkCorrect4" runat="server" CssClass="ml-1" />
-                                    <label for="chkCorrect4">Correct</label>
+                                    <asp:RadioButton ID="rdoCorrect4" runat="server" GroupName="correctAnswer" Text="Correct answer" CssClass="ml-1" />
                                 </div>
                             </div>
-                        </div>
-                        <div class="form-group">
-                            <asp:CheckBox ID="chkIsActive" runat="server" Checked="true" />
-                            <label for="chkIsActive">Active</label>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -213,7 +201,7 @@
         .option-input .form-control {
             flex: 1;
         }
-        .option-input input[type="checkbox"] {
+        .option-input input[type="radio"] {
             width: 18px;
             height: 18px;
             cursor: pointer;

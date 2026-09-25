@@ -45,23 +45,25 @@
                     </div>
                 </div>
 
+                <div id="quizValidationMessage" runat="server" class="alert alert-warning quiz-validation-message" role="alert" style="display:none"></div>
+
                 <div class="quiz-body">
                     <asp:Repeater ID="rptQuestions" runat="server">
                         <ItemTemplate>
                             <div class="question-card" data-index='<%# Container.ItemIndex %>' data-questionid='<%# Eval("QuestionID") %>' style='display: <%# Container.ItemIndex == 0 ? "block" : "none" %>;'>
                                 <div class="question-header">
-                                    <span class="question-number">Question <%# Container.ItemIndex + 1 %> of <%# ((Repeater)Container.NamingContainer).Items.Count %></span>
+                                    <span class="question-number">Question <%# Container.ItemIndex + 1 %></span>
                                     <span class="question-points">Points: <%# Eval("Points") %></span>
                                 </div>
                                 <div class="question-text">
-                                    <%# Eval("QuestionText") %>
+                                    <%# Server.HtmlEncode(Convert.ToString(Eval("QuestionText"))) %>
                                 </div>
                                 <div class="answer-options">
                                     <asp:Repeater ID="rptOptions" runat="server" DataSource='<%# Eval("Options") %>'>
                                         <ItemTemplate>
                                             <div class="answer-option">
-                                                <input type="radio" name="question_<%# Eval("QuestionID") %>" value='<%# Eval("OptionID") %>' id='opt_<%# Eval("OptionID") %>' />
-                                                <label for='opt_<%# Eval("OptionID") %>'><%# Eval("OptionLabel") %>. <%# Eval("OptionText") %></label>
+                                                <input type="radio" name="question_<%# Eval("QuestionID") %>" value='<%# Eval("OptionID") %>' id='opt_<%# Eval("OptionID") %>' <%# IsOptionSelected(Eval("QuestionID"), Eval("OptionID")) ? "checked" : string.Empty %> />
+                                                <label for='opt_<%# Eval("OptionID") %>'><%# Server.HtmlEncode(Convert.ToString(Eval("OptionLabel"))) %>. <%# Server.HtmlEncode(Convert.ToString(Eval("OptionText"))) %></label>
                                             </div>
                                         </ItemTemplate>
                                     </asp:Repeater>
@@ -74,8 +76,24 @@
                 <div class="quiz-navigation">
                     <button type="button" class="btn btn-secondary btn-prev" disabled>Previous</button>
                     <button type="button" class="btn btn-primary btn-next">Next</button>
-                    <asp:Button ID="btnSubmitQuiz" runat="server" Text="Submit Quiz" CssClass="btn btn-success" OnClick="btnSubmitQuiz_Click" />
+                    <asp:Button ID="btnSubmitQuiz" runat="server" Text="Submit Quiz" CssClass="btn btn-success" OnClientClick="return validateQuizCompletion();" OnClick="btnSubmitQuiz_Click" />
                 </div>
+            </div>
+        </asp:Panel>
+
+        <asp:Panel ID="pnlLocked" runat="server" Visible="false">
+            <div class="alert alert-warning">
+                <h4>Quiz Locked</h4>
+                <p>Complete every active lesson in <asp:Label ID="lblLockedModule" runat="server" /> to unlock this quiz.</p>
+                <a href="Quizzes.aspx" class="btn btn-primary">Back to Quizzes</a>
+            </div>
+        </asp:Panel>
+
+        <asp:Panel ID="pnlNoQuestions" runat="server" Visible="false">
+            <div class="alert alert-info">
+                <h4>Quiz not ready</h4>
+                <p>This quiz does not have any questions yet. Please contact your instructor.</p>
+                <a href="Quizzes.aspx" class="btn btn-primary">Back to Quizzes</a>
             </div>
         </asp:Panel>
 
@@ -200,6 +218,13 @@
             display: none;
             padding: 20px 0;
         }
+        .question-card.incomplete {
+            border-left: 4px solid #fc8181;
+            padding-left: 16px;
+        }
+        .quiz-validation-message {
+            margin-bottom: 15px;
+        }
         .question-header {
             display: flex;
             justify-content: space-between;
@@ -286,7 +311,34 @@
 
             // Initialize quiz navigation
             window.quizNavigator = new QuizNavigator($('.question-card').length);
+            if (typeof window.initialQuizQuestionIndex === 'number') {
+                window.quizNavigator.goToQuestion(window.initialQuizQuestionIndex);
+            }
         });
+
+        function validateQuizCompletion() {
+            var $unanswered = $('.question-card').filter(function () {
+                return $(this).find('input[type="radio"]:checked').length === 0;
+            });
+
+            if ($unanswered.length === 0) {
+                $('#<%= quizValidationMessage.ClientID %>').hide().text('');
+                return true;
+            }
+
+            var message = document.getElementById('<%= quizValidationMessage.ClientID %>');
+            message.textContent = 'Please answer every question before submitting. You still have ' +
+                $unanswered.length + ' unanswered question(s).';
+            $(message).show();
+
+            $('.question-card').removeClass('incomplete');
+            $unanswered.addClass('incomplete');
+            if (window.quizNavigator) {
+                window.quizNavigator.goToQuestion(parseInt($unanswered.first().data('index'), 10));
+            }
+            message.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return false;
+        }
 
         class QuizTimer {
             constructor(totalSeconds) {
@@ -346,7 +398,7 @@
 
             timeUp() {
                 alert('Time is up! Your quiz will be submitted automatically.');
-                $('#btnSubmitQuiz').click();
+                $('#<%= btnSubmitQuiz.ClientID %>').click();
             }
 
             getTimeRemaining() {
@@ -377,6 +429,10 @@
                 });
                 $('.answer-option input[type="radio"]').change((e) => {
                     this.saveAnswer(e.target);
+                });
+
+                $('.answer-option input[type="radio"]:checked').each((_, input) => {
+                    this.saveAnswer(input);
                 });
             }
 
@@ -412,7 +468,14 @@
                 var questionId = $(input).closest('.question-card').data('questionid');
                 var value = $(input).val();
                 this.answers[questionId] = value;
+                $(input).closest('.question-card').removeClass('incomplete');
                 this.updateNavItems();
+
+                if ($('.question-card').filter(function () {
+                    return $(this).find('input[type="radio"]:checked').length === 0;
+                }).length === 0) {
+                    $('#<%= quizValidationMessage.ClientID %>').hide().text('');
+                }
             }
 
             updateNavigation() {

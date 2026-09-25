@@ -61,7 +61,8 @@ namespace RespondX.Learner
                                (SELECT COUNT(*) FROM Lessons l WHERE l.ModuleID = m.ModuleID AND l.IsActive = 1) AS TotalLessons,
                                (SELECT COUNT(*) FROM LearnerProgress lp
                                 INNER JOIN Lessons l2 ON lp.LessonID = l2.LessonID
-                                WHERE l2.ModuleID = m.ModuleID AND lp.LearnerID = @LearnerID AND lp.IsCompleted = 1) AS CompletedLessons
+                                WHERE l2.ModuleID = m.ModuleID AND lp.LearnerID = @LearnerID
+                                  AND lp.Status IN (N'Completed', N'Certified')) AS CompletedLessons
                         FROM Modules m
                         WHERE m.IsActive = 1
                         ORDER BY m.ModuleOrder, m.ModuleID";

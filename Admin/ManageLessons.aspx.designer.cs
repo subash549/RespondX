@@ -114,6 +114,16 @@ namespace RespondX.Admin
         protected global::System.Web.UI.WebControls.HiddenField hfModuleID;
 
         /// <summary>
+        /// pnlModalError control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Panel pnlModalError;
+
+        /// <summary>
+        /// lblModalError control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Label lblModalError;
+
+        /// <summary>
         /// txtTitle control.
         /// </summary>
         /// <remarks>

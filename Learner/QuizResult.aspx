@@ -10,9 +10,9 @@
     <div class="container">
         <asp:Panel ID="pnlResult" runat="server" Visible="false">
             <div class="result-container">
-                <div class="result-header <%# Convert.ToBoolean(Eval("IsPassed")) ? "passed" : "failed" %>">
+                <div id="resultHeader" runat="server" class="result-header">
                     <div class="result-icon">
-                        <i class="fas <%# Convert.ToBoolean(Eval("IsPassed")) ? "fa-check-circle" : "fa-times-circle" %>"></i>
+                        <i id="resultIcon" runat="server" class="fas fa-check-circle"></i>
                     </div>
                     <h1><asp:Label ID="lblResultTitle" runat="server"></asp:Label></h1>
                     <p><asp:Label ID="lblResultMessage" runat="server"></asp:Label></p>
@@ -51,10 +51,10 @@
                                         <i class="fas fa-<%# Convert.ToBoolean(Eval("IsCorrect")) ? "check" : "times" %>"></i>
                                     </div>
                                     <div class="answer-content">
-                                        <h4><%# Eval("QuestionText") %></h4>
-                                        <p><strong>Your Answer:</strong> <%# Eval("SelectedAnswer") %></p>
-                                        <p><strong>Correct Answer:</strong> <%# Eval("CorrectAnswer") %></p>
-                                        <%# Convert.ToBoolean(Eval("IsCorrect")) ? "" : "<p class='text-danger'><strong>Explanation:</strong> " + Eval("Explanation") + "</p>" %>
+                                        <h4><%# Server.HtmlEncode(Convert.ToString(Eval("QuestionText"))) %></h4>
+                                        <p><strong>Your Answer:</strong> <%# Server.HtmlEncode(Convert.ToString(Eval("SelectedAnswer"))) %></p>
+                                        <p><strong>Correct Answer:</strong> <%# Server.HtmlEncode(Convert.ToString(Eval("CorrectAnswer"))) %></p>
+                                        <%# Convert.ToBoolean(Eval("IsCorrect")) ? "" : "<p class='text-danger'><strong>Explanation:</strong> " + Server.HtmlEncode(Convert.ToString(Eval("Explanation"))) + "</p>" %>
                                     </div>
                                 </div>
                             </ItemTemplate>
@@ -65,7 +65,7 @@
                 <div class="result-actions">
                     <a href="Quizzes.aspx" class="btn btn-secondary">Back to Quizzes</a>
                     <asp:Button ID="btnRetake" runat="server" Text="Retake Quiz" CssClass="btn btn-primary" OnClick="btnRetake_Click" />
-                    <asp:Button ID="btnCertificate" runat="server" Text="View Certificate" CssClass="btn btn-success" OnClick="btnCertificate_Click" Visible="false" />
+                    <asp:Button ID="btnCertificate" runat="server" Text="Download Certificate" CssClass="btn btn-success" OnClick="btnCertificate_Click" Visible="false" />
                 </div>
             </div>
         </asp:Panel>

@@ -69,6 +69,11 @@ namespace RespondX.Admin
         protected global::System.Web.UI.WebControls.Button btnBack;
 
         /// <summary>
+        /// ddlQuiz control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.DropDownList ddlQuiz;
+
+        /// <summary>
         /// btnAddQuestion control.
         /// </summary>
         /// <remarks>
@@ -98,10 +103,6 @@ namespace RespondX.Admin
         /// <summary>
         /// hfQuestionID control.
         /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
         protected global::System.Web.UI.WebControls.HiddenField hfQuestionID;
 
         /// <summary>
@@ -123,15 +124,6 @@ namespace RespondX.Admin
         protected global::System.Web.UI.WebControls.TextBox txtQuestionText;
 
         /// <summary>
-        /// ddlQuestionType control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.DropDownList ddlQuestionType;
-
-        /// <summary>
         /// txtPoints control.
         /// </summary>
         /// <remarks>
@@ -150,13 +142,13 @@ namespace RespondX.Admin
         protected global::System.Web.UI.WebControls.TextBox txtOption1;
 
         /// <summary>
-        /// chkCorrect1 control.
+        /// rdoCorrect1 control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.CheckBox chkCorrect1;
+        protected global::System.Web.UI.WebControls.RadioButton rdoCorrect1;
 
         /// <summary>
         /// txtOption2 control.
@@ -168,13 +160,13 @@ namespace RespondX.Admin
         protected global::System.Web.UI.WebControls.TextBox txtOption2;
 
         /// <summary>
-        /// chkCorrect2 control.
+        /// rdoCorrect2 control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.CheckBox chkCorrect2;
+        protected global::System.Web.UI.WebControls.RadioButton rdoCorrect2;
 
         /// <summary>
         /// txtOption3 control.
@@ -186,13 +178,13 @@ namespace RespondX.Admin
         protected global::System.Web.UI.WebControls.TextBox txtOption3;
 
         /// <summary>
-        /// chkCorrect3 control.
+        /// rdoCorrect3 control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.CheckBox chkCorrect3;
+        protected global::System.Web.UI.WebControls.RadioButton rdoCorrect3;
 
         /// <summary>
         /// txtOption4 control.
@@ -204,22 +196,13 @@ namespace RespondX.Admin
         protected global::System.Web.UI.WebControls.TextBox txtOption4;
 
         /// <summary>
-        /// chkCorrect4 control.
+        /// rdoCorrect4 control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.CheckBox chkCorrect4;
-
-        /// <summary>
-        /// chkIsActive control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.CheckBox chkIsActive;
+        protected global::System.Web.UI.WebControls.RadioButton rdoCorrect4;
 
         /// <summary>
         /// btnSaveQuestion control.

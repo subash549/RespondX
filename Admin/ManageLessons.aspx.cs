@@ -1,5 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Data;
+using System.Data.SqlClient;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using RespondX.Helpers;
@@ -9,6 +12,10 @@ namespace RespondX.Admin
 {
     public partial class ManageLessons : Page
     {
+        private readonly string connectionString =
+            ConfigurationManager.ConnectionStrings["DefaultConnection"]?.ConnectionString
+            ?? ConfigurationManager.ConnectionStrings["RespondX"]?.ConnectionString;
+
         private int moduleId;
 
         protected void Page_Load(object sender, EventArgs e)
@@ -16,64 +23,107 @@ namespace RespondX.Admin
             if (!AuthorizationHelper.RequireRole("Admin"))
                 return;
 
+            if (!int.TryParse(Request.QueryString["moduleId"], out moduleId) || moduleId <= 0)
+            {
+                RedirectToModules();
+                return;
+            }
+
+            var module = GetModuleById(moduleId);
+            if (module == null)
+            {
+                RedirectToModules();
+                return;
+            }
+
+            hfModuleID.Value = moduleId.ToString();
             if (!IsPostBack)
             {
-                if (int.TryParse(Request.QueryString["moduleId"], out moduleId))
-                {
-                    hfModuleID.Value = moduleId.ToString();
-                    LoadModuleInfo();
-                    LoadLessons();
-                }
-                else
-                {
-                    Response.Redirect("ManageModules.aspx");
-                }
-            }
-            else
-            {
-                moduleId = int.Parse(hfModuleID.Value);
+                lblModuleInfo.Text = "Module: " + Server.HtmlEncode(module.Title);
+                LoadLessons();
             }
         }
 
-        private void LoadModuleInfo()
+        private void RedirectToModules()
         {
-            var module = GetModuleById(moduleId);
-            if (module != null)
+            Response.Redirect("ManageModules.aspx", false);
+            Context.ApplicationInstance.CompleteRequest();
+        }
+
+        private ModuleItem GetModuleById(int id)
+        {
+            using (var conn = new SqlConnection(connectionString))
+            using (var cmd = new SqlCommand(
+                "SELECT ModuleID, Title FROM dbo.Modules WHERE ModuleID = @ModuleID;", conn))
             {
-                lblModuleInfo.Text = $"Module: {module.Title}";
+                cmd.Parameters.Add("@ModuleID", SqlDbType.Int).Value = id;
+                conn.Open();
+                using (var reader = cmd.ExecuteReader())
+                {
+                    if (!reader.Read())
+                        return null;
+
+                    return new ModuleItem
+                    {
+                        ModuleID = Convert.ToInt32(reader["ModuleID"]),
+                        Title = Convert.ToString(reader["Title"])
+                    };
+                }
             }
         }
 
         private void LoadLessons()
         {
-            var lessons = GetLessons(moduleId);
-            rptLessons.DataSource = lessons;
+            rptLessons.DataSource = GetLessons(moduleId);
             rptLessons.DataBind();
         }
 
-        private ModuleItem GetModuleById(int id)
+        private List<LessonItem> GetLessons(int selectedModuleId)
         {
-            var modules = new List<ModuleItem>
+            var lessons = new List<LessonItem>();
+            using (var conn = new SqlConnection(connectionString))
+            using (var cmd = new SqlCommand(@"
+                SELECT LessonID, ModuleID, Title, Content, LessonOrder, IsActive, VideoUrl, ResourceUrl
+                FROM dbo.Lessons
+                WHERE ModuleID = @ModuleID
+                ORDER BY LessonOrder, LessonID;", conn))
             {
-                new ModuleItem { ModuleID = 1, Title = "Introduction to Emergency Response" },
-                new ModuleItem { ModuleID = 2, Title = "CPR and First Aid" }
-            };
-            return modules.Find(m => m.ModuleID == id);
-        }
+                cmd.Parameters.Add("@ModuleID", SqlDbType.Int).Value = selectedModuleId;
+                conn.Open();
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string videoUrl = reader["VideoUrl"] == DBNull.Value ? string.Empty : Convert.ToString(reader["VideoUrl"]);
+                        string resourceUrl = reader["ResourceUrl"] == DBNull.Value ? string.Empty : Convert.ToString(reader["ResourceUrl"]);
+                        lessons.Add(new LessonItem
+                        {
+                            LessonID = Convert.ToInt32(reader["LessonID"]),
+                            ModuleId = Convert.ToInt32(reader["ModuleID"]),
+                            Title = Convert.ToString(reader["Title"]),
+                            Content = reader["Content"] == DBNull.Value ? string.Empty : Convert.ToString(reader["Content"]),
+                            LessonOrder = Convert.ToInt32(reader["LessonOrder"]),
+                            IsActive = Convert.ToBoolean(reader["IsActive"]),
+                            VideoUrl = videoUrl,
+                            ResourceUrl = resourceUrl,
+                            HasVideo = !string.IsNullOrWhiteSpace(videoUrl),
+                            HasResources = !string.IsNullOrWhiteSpace(resourceUrl)
+                        });
+                    }
+                }
+            }
 
-        private List<LessonItem> GetLessons(int moduleId)
-        {
-            return new List<LessonItem>
-            {
-                new LessonItem { LessonID = 1, Title = "What is Emergency Response?", LessonOrder = 1, IsActive = true, HasVideo = true, HasResources = false },
-                new LessonItem { LessonID = 2, Title = "Assessment of Emergency Situations", LessonOrder = 2, IsActive = true, HasVideo = false, HasResources = true },
-                new LessonItem { LessonID = 3, Title = "Emergency Response Plans", LessonOrder = 3, IsActive = false, HasVideo = false, HasResources = false }
-            };
+            return lessons;
         }
 
         protected void rptLessons_ItemCommand(object source, RepeaterCommandEventArgs e)
         {
-            int lessonId = int.Parse(e.CommandArgument.ToString());
+            int lessonId;
+            if (!int.TryParse(Convert.ToString(e.CommandArgument), out lessonId) || lessonId <= 0)
+            {
+                ShowError("The selected lesson could not be found.");
+                return;
+            }
 
             switch (e.CommandName)
             {
@@ -92,78 +142,302 @@ namespace RespondX.Admin
         private void EditLesson(int lessonId)
         {
             var lesson = GetLessonById(lessonId);
-            if (lesson != null)
+            if (lesson == null)
             {
-                lblModalTitle.Text = "Edit Lesson";
-                hfLessonID.Value = lessonId.ToString();
-                txtTitle.Text = lesson.Title;
-                txtContent.Text = lesson.Content ?? "";
-                txtOrder.Text = lesson.LessonOrder.ToString();
-                txtVideoUrl.Text = lesson.VideoUrl;
-                txtResourceUrl.Text = lesson.ResourceUrl;
-                chkIsActive.Checked = lesson.IsActive;
-
-                ScriptManager.RegisterStartupScript(this, GetType(), "showModal", "$('#modalLesson').modal('show');", true);
+                ShowError("This lesson does not belong to the selected module.");
+                LoadLessons();
+                return;
             }
+
+            lblModalTitle.Text = "Edit Lesson";
+            pnlModalError.Visible = false;
+            lblModalError.Text = string.Empty;
+            hfLessonID.Value = lessonId.ToString();
+            txtTitle.Text = lesson.Title;
+            txtContent.Text = lesson.Content;
+            txtOrder.Text = lesson.LessonOrder.ToString();
+            txtVideoUrl.Text = lesson.VideoUrl;
+            txtResourceUrl.Text = lesson.ResourceUrl;
+            chkIsActive.Checked = lesson.IsActive;
+            OpenLessonModal();
         }
 
         private void ToggleLesson(int lessonId)
         {
-            ShowSuccess("Lesson status updated successfully");
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                using (var cmd = new SqlCommand(@"
+                    UPDATE dbo.Lessons
+                    SET IsActive = CASE WHEN IsActive = 1 THEN 0 ELSE 1 END,
+                        UpdatedAt = GETDATE()
+                    WHERE LessonID = @LessonID AND ModuleID = @ModuleID;", conn))
+                {
+                    cmd.Parameters.Add("@LessonID", SqlDbType.Int).Value = lessonId;
+                    cmd.Parameters.Add("@ModuleID", SqlDbType.Int).Value = moduleId;
+                    conn.Open();
+                    if (cmd.ExecuteNonQuery() == 0)
+                    {
+                        ShowError("This lesson does not belong to the selected module.");
+                        LoadLessons();
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Toggle lesson status", ex.Message, ex.StackTrace);
+                ShowError("Unable to update this lesson status. Please try again.");
+                LoadLessons();
+                return;
+            }
+
+            ShowSuccess("Lesson status updated successfully.");
             LoadLessons();
         }
 
         private void DeleteLesson(int lessonId)
         {
-            ShowSuccess("Lesson deleted successfully");
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                using (var transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        using (var progressCommand = new SqlCommand(
+                            "DELETE FROM dbo.LearnerProgress WHERE LessonID = @LessonID AND ModuleID = @ModuleID;",
+                            conn, transaction))
+                        {
+                            progressCommand.Parameters.Add("@LessonID", SqlDbType.Int).Value = lessonId;
+                            progressCommand.Parameters.Add("@ModuleID", SqlDbType.Int).Value = moduleId;
+                            progressCommand.ExecuteNonQuery();
+                        }
+
+                        int deleted;
+                        using (var lessonCommand = new SqlCommand(
+                            "DELETE FROM dbo.Lessons WHERE LessonID = @LessonID AND ModuleID = @ModuleID;",
+                            conn, transaction))
+                        {
+                            lessonCommand.Parameters.Add("@LessonID", SqlDbType.Int).Value = lessonId;
+                            lessonCommand.Parameters.Add("@ModuleID", SqlDbType.Int).Value = moduleId;
+                            deleted = lessonCommand.ExecuteNonQuery();
+                        }
+
+                        if (deleted == 0)
+                        {
+                            transaction.Rollback();
+                            ShowError("This lesson does not belong to the selected module.");
+                            LoadLessons();
+                            return;
+                        }
+
+                        transaction.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        DatabaseHelper.LogError("Delete lesson", ex.Message, ex.StackTrace);
+                        ShowError("Unable to delete this lesson. Please try again.");
+                        LoadLessons();
+                        return;
+                    }
+                }
+            }
+
+            ShowSuccess("Lesson and its learner progress were deleted successfully.");
             LoadLessons();
         }
 
         protected void btnSaveLesson_Click(object sender, EventArgs e)
         {
+            string title = txtTitle.Text.Trim();
+            string content = txtContent.Text.Trim();
             int lessonId;
-            bool isNew = !int.TryParse(hfLessonID.Value, out lessonId) || lessonId == 0;
+            bool isNew = !int.TryParse(hfLessonID.Value, out lessonId) || lessonId <= 0;
 
-            if (string.IsNullOrEmpty(txtTitle.Text) || string.IsNullOrEmpty(txtContent.Text))
+            if (string.IsNullOrWhiteSpace(title) || title.Length < 3 || title.Length > 100 || string.IsNullOrWhiteSpace(content))
             {
-                ShowError("Title and content are required.");
+                ShowFormError("Enter a lesson title between 3 and 100 characters and lesson content.");
                 return;
             }
 
-            ShowSuccess(isNew ? "Lesson added successfully" : "Lesson updated successfully");
+            int lessonOrder;
+            if (string.IsNullOrWhiteSpace(txtOrder.Text))
+            {
+                lessonOrder = GetNextLessonOrder();
+            }
+            else if (!int.TryParse(txtOrder.Text.Trim(), out lessonOrder) || lessonOrder < 1)
+            {
+                ShowFormError("Lesson order must be a whole number of 1 or higher.");
+                return;
+            }
+
+            string videoUrl = txtVideoUrl.Text.Trim();
+            string resourceUrl = txtResourceUrl.Text.Trim();
+            if (!IsOptionalWebUrl(videoUrl) || !IsOptionalWebUrl(resourceUrl))
+            {
+                ShowFormError("Video and resource links must be valid HTTP or HTTPS URLs.");
+                return;
+            }
+
+            if (!isNew && GetLessonById(lessonId) == null)
+            {
+                ShowError("This lesson does not belong to the selected module.");
+                ClearForm();
+                LoadLessons();
+                return;
+            }
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                using (var cmd = new SqlCommand(isNew ? @"
+                    INSERT INTO dbo.Lessons
+                        (ModuleID, Title, Content, LessonOrder, IsActive, CreatedAt, VideoUrl, ResourceUrl)
+                    VALUES
+                        (@ModuleID, @Title, @Content, @LessonOrder, @IsActive, GETDATE(), @VideoUrl, @ResourceUrl);" : @"
+                    UPDATE dbo.Lessons
+                    SET Title = @Title,
+                        Content = @Content,
+                        LessonOrder = @LessonOrder,
+                        IsActive = @IsActive,
+                        VideoUrl = @VideoUrl,
+                        ResourceUrl = @ResourceUrl,
+                        UpdatedAt = GETDATE()
+                    WHERE LessonID = @LessonID AND ModuleID = @ModuleID;", conn))
+                {
+                    AddLessonParameters(cmd, title, content, lessonOrder, videoUrl, resourceUrl);
+                    cmd.Parameters.Add("@ModuleID", SqlDbType.Int).Value = moduleId;
+                    if (!isNew)
+                        cmd.Parameters.Add("@LessonID", SqlDbType.Int).Value = lessonId;
+
+                    conn.Open();
+                    int saved = cmd.ExecuteNonQuery();
+                    if (saved == 0)
+                    {
+                        ShowFormError("This lesson could not be saved in the selected module.");
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Save lesson", ex.Message, ex.StackTrace);
+                ShowFormError("Unable to save this lesson. Please review the fields and try again.");
+                return;
+            }
+
+            ShowSuccess(isNew ? "Lesson added successfully." : "Lesson updated successfully.");
             ClearForm();
             LoadLessons();
+            ScriptManager.RegisterStartupScript(this, GetType(), "hideLessonModal",
+                "$('#modalLesson').modal('hide');", true);
+        }
 
-            ScriptManager.RegisterStartupScript(this, GetType(), "hideModal", "$('#modalLesson').modal('hide');", true);
+        private void AddLessonParameters(SqlCommand cmd, string title, string content, int lessonOrder,
+            string videoUrl, string resourceUrl)
+        {
+            cmd.Parameters.Add("@Title", SqlDbType.NVarChar, 100).Value = title;
+            cmd.Parameters.Add("@Content", SqlDbType.NVarChar, -1).Value = content;
+            cmd.Parameters.Add("@LessonOrder", SqlDbType.Int).Value = lessonOrder;
+            cmd.Parameters.Add("@IsActive", SqlDbType.Bit).Value = chkIsActive.Checked;
+            cmd.Parameters.Add("@VideoUrl", SqlDbType.NVarChar, 1000).Value =
+                string.IsNullOrWhiteSpace(videoUrl) ? (object)DBNull.Value : videoUrl;
+            cmd.Parameters.Add("@ResourceUrl", SqlDbType.NVarChar, 1000).Value =
+                string.IsNullOrWhiteSpace(resourceUrl) ? (object)DBNull.Value : resourceUrl;
+        }
+
+        private int GetNextLessonOrder()
+        {
+            using (var conn = new SqlConnection(connectionString))
+            using (var cmd = new SqlCommand(
+                "SELECT ISNULL(MAX(LessonOrder), 0) + 1 FROM dbo.Lessons WHERE ModuleID = @ModuleID;", conn))
+            {
+                cmd.Parameters.Add("@ModuleID", SqlDbType.Int).Value = moduleId;
+                conn.Open();
+                return Convert.ToInt32(cmd.ExecuteScalar());
+            }
+        }
+
+        private static bool IsOptionalWebUrl(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return true;
+
+            Uri uri;
+            return Uri.TryCreate(value, UriKind.Absolute, out uri) &&
+                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
         }
 
         private LessonItem GetLessonById(int lessonId)
         {
-            var lessons = GetLessons(moduleId);
-            return lessons.Find(l => l.LessonID == lessonId);
+            using (var conn = new SqlConnection(connectionString))
+            using (var cmd = new SqlCommand(@"
+                SELECT LessonID, ModuleID, Title, Content, LessonOrder, IsActive, VideoUrl, ResourceUrl
+                FROM dbo.Lessons
+                WHERE LessonID = @LessonID AND ModuleID = @ModuleID;", conn))
+            {
+                cmd.Parameters.Add("@LessonID", SqlDbType.Int).Value = lessonId;
+                cmd.Parameters.Add("@ModuleID", SqlDbType.Int).Value = moduleId;
+                conn.Open();
+                using (var reader = cmd.ExecuteReader())
+                {
+                    if (!reader.Read())
+                        return null;
+
+                    return new LessonItem
+                    {
+                        LessonID = Convert.ToInt32(reader["LessonID"]),
+                        ModuleId = Convert.ToInt32(reader["ModuleID"]),
+                        Title = Convert.ToString(reader["Title"]),
+                        Content = reader["Content"] == DBNull.Value ? string.Empty : Convert.ToString(reader["Content"]),
+                        LessonOrder = Convert.ToInt32(reader["LessonOrder"]),
+                        IsActive = Convert.ToBoolean(reader["IsActive"]),
+                        VideoUrl = reader["VideoUrl"] == DBNull.Value ? string.Empty : Convert.ToString(reader["VideoUrl"]),
+                        ResourceUrl = reader["ResourceUrl"] == DBNull.Value ? string.Empty : Convert.ToString(reader["ResourceUrl"])
+                    };
+                }
+            }
         }
 
         private void ClearForm()
         {
-            hfLessonID.Value = "";
-            txtTitle.Text = "";
-            txtContent.Text = "";
-            txtOrder.Text = "";
-            txtVideoUrl.Text = "";
-            txtResourceUrl.Text = "";
+            hfLessonID.Value = string.Empty;
+            txtTitle.Text = string.Empty;
+            txtContent.Text = string.Empty;
+            txtOrder.Text = string.Empty;
+            txtVideoUrl.Text = string.Empty;
+            txtResourceUrl.Text = string.Empty;
             chkIsActive.Checked = true;
             lblModalTitle.Text = "Add Lesson";
+            pnlModalError.Visible = false;
+            lblModalError.Text = string.Empty;
         }
 
         protected void btnAddLesson_Click(object sender, EventArgs e)
         {
             ClearForm();
-            ScriptManager.RegisterStartupScript(this, GetType(), "showModal", "$('#modalLesson').modal('show');", true);
+            OpenLessonModal();
+        }
+
+        private void OpenLessonModal()
+        {
+            ScriptManager.RegisterStartupScript(this, GetType(), "showLessonModal",
+                "$('#modalLesson').modal('show');", true);
+        }
+
+        private void ShowFormError(string message)
+        {
+            ShowError(message);
+            pnlModalError.Visible = true;
+            lblModalError.Text = message;
+            OpenLessonModal();
         }
 
         protected void btnBack_Click(object sender, EventArgs e)
         {
-            Response.Redirect("ManageModules.aspx");
+            RedirectToModules();
         }
 
         private void ShowSuccess(string message)

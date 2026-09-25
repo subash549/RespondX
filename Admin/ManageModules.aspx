@@ -57,6 +57,7 @@
                         <div class="module-actions">
                             <asp:Button ID="btnEdit" runat="server" Text="Edit" CssClass="btn btn-info btn-sm" CommandName="Edit" CommandArgument='<%# Eval("ModuleID") %>' />
                             <asp:Button ID="btnLessons" runat="server" Text="Lessons" CssClass="btn btn-primary btn-sm" CommandName="Lessons" CommandArgument='<%# Eval("ModuleID") %>' />
+                            <asp:Button ID="btnQuizzes" runat="server" Text="Quizzes" CssClass="btn btn-secondary btn-sm" CommandName="Quizzes" CommandArgument='<%# Eval("ModuleID") %>' />
                             <asp:Button ID="btnToggle" runat="server" Text='<%# Convert.ToBoolean(Eval("IsActive")) ? "Deactivate" : "Activate" %>' CssClass='<%# Convert.ToBoolean(Eval("IsActive")) ? "btn btn-warning btn-sm" : "btn btn-success btn-sm" %>' CommandName="Toggle" CommandArgument='<%# Eval("ModuleID") %>' />
                             <asp:Button ID="btnDelete" runat="server" Text="Delete" CssClass="btn btn-danger btn-sm" CommandName="Delete" CommandArgument='<%# Eval("ModuleID") %>' OnClientClick="return confirm('Are you sure you want to delete this module?');" />
                         </div>

@@ -4,6 +4,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
 using System.IO;
+using System.Web;
 using RespondX.Models;
 
 namespace RespondX.Certificates
@@ -40,13 +41,13 @@ namespace RespondX.Certificates
                     graphics.TextRenderingHint = TextRenderingHint.AntiAlias;
 
                     // Draw background
-                    using (var background = new SolidBrush(Color.White))
+                    using (var background = new SolidBrush(Color.FromArgb(250, 248, 242)))
                     {
                         graphics.FillRectangle(background, 0, 0, width, height);
                     }
 
                     // Draw border
-                    using (var borderPen = new Pen(Color.FromArgb(201, 168, 76), 8))
+                    using (var borderPen = new Pen(Color.FromArgb(25, 42, 70), 8))
                     {
                         graphics.DrawRectangle(borderPen, 20, 20, width - 40, height - 40);
                     }
@@ -68,7 +69,7 @@ namespace RespondX.Certificates
 
                     // Draw title
                     using (var titleFont = new Font("Georgia", 42, FontStyle.Bold))
-                    using (var titleBrush = new SolidBrush(Color.FromArgb(45, 55, 72)))
+                    using (var titleBrush = new SolidBrush(Color.FromArgb(25, 42, 70)))
                     {
                         var titleText = "Certificate of Completion";
                         var titleSize = graphics.MeasureString(titleText, titleFont);
@@ -78,7 +79,7 @@ namespace RespondX.Certificates
 
                     // Draw subtitle
                     using (var subFont = new Font("Georgia", 16, FontStyle.Regular))
-                    using (var subBrush = new SolidBrush(Color.FromArgb(113, 128, 150)))
+                    using (var subBrush = new SolidBrush(Color.FromArgb(166, 128, 45)))
                     {
                         var subText = "RespondX Emergency Response Training";
                         var subSize = graphics.MeasureString(subText, subFont);
@@ -86,14 +87,11 @@ namespace RespondX.Certificates
                         graphics.DrawString(subText, subFont, subBrush, subX, 315);
                     }
 
-                    // Draw recipient name
-                    using (var nameFont = new Font("Georgia", 36, FontStyle.Bold))
-                    using (var nameBrush = new SolidBrush(Color.FromArgb(102, 126, 234)))
+                    // Draw recipient name with a smaller font when the name is long.
+                    using (var nameBrush = new SolidBrush(Color.FromArgb(25, 42, 70)))
                     {
-                        var nameText = certificate.LearnerName;
-                        var nameSize = graphics.MeasureString(nameText, nameFont);
-                        var nameX = (width - nameSize.Width) / 2;
-                        graphics.DrawString(nameText, nameFont, nameBrush, nameX, 390);
+                        DrawFittedCenteredText(graphics, certificate.LearnerName, "Georgia", FontStyle.Bold,
+                            36, 24, width - 180, 390, nameBrush, width);
                     }
 
                     // Draw completion text
@@ -109,12 +107,10 @@ namespace RespondX.Certificates
                         yOffset += lineHeight;
 
                         // Module name
-                        using (var moduleFont = new Font("Georgia", 20, FontStyle.Bold))
-                        using (var moduleBrush = new SolidBrush(Color.FromArgb(102, 126, 234)))
+                        using (var moduleBrush = new SolidBrush(Color.FromArgb(166, 128, 45)))
                         {
-                            var moduleText = certificate.ModuleTitle;
-                            var moduleSize = graphics.MeasureString(moduleText, moduleFont);
-                            graphics.DrawString(moduleText, moduleFont, moduleBrush, (width - moduleSize.Width) / 2, yOffset);
+                            DrawFittedCenteredText(graphics, certificate.ModuleTitle, "Georgia", FontStyle.Bold,
+                                20, 16, width - 180, yOffset, moduleBrush, width);
                             yOffset += lineHeight + 10;
                         }
 
@@ -192,6 +188,24 @@ namespace RespondX.Certificates
             }
         }
 
+        private static void DrawFittedCenteredText(Graphics graphics, string text, string fontFamily,
+            FontStyle fontStyle, float maxFontSize, float minFontSize, float maxWidth, float y, Brush brush, int canvasWidth)
+        {
+            text = text ?? string.Empty;
+            for (float fontSize = maxFontSize; fontSize >= minFontSize; fontSize -= 1)
+            {
+                using (var font = new Font(fontFamily, fontSize, fontStyle))
+                {
+                    var size = graphics.MeasureString(text, font);
+                    if (size.Width <= maxWidth || fontSize <= minFontSize)
+                    {
+                        graphics.DrawString(text, font, brush, (canvasWidth - size.Width) / 2, y);
+                        return;
+                    }
+                }
+            }
+        }
+
         private static void DrawSeal(Graphics graphics, int x, int y, int radius)
         {
             using (var path = new GraphicsPath())
@@ -201,8 +215,8 @@ namespace RespondX.Certificates
                 using (var sealBrush = new LinearGradientBrush(
                     new Point(x - radius, y - radius),
                     new Point(x + radius, y + radius),
-                    Color.FromArgb(240, 147, 251),
-                    Color.FromArgb(245, 87, 108)))
+                    Color.FromArgb(25, 42, 70),
+                    Color.FromArgb(201, 168, 76)))
                 {
                     graphics.FillPath(sealBrush, path);
                 }
@@ -213,14 +227,14 @@ namespace RespondX.Certificates
                 }
 
                 // Draw inner circle
-                using (var innerPen = new Pen(Color.White, 2))
+                using (var innerPen = new Pen(Color.FromArgb(250, 248, 242), 2))
                 {
                     graphics.DrawEllipse(innerPen, x - radius + 15, y - radius + 15, (radius - 15) * 2, (radius - 15) * 2);
                 }
 
                 // Draw text
                 using (var font = new Font("Georgia", 10, FontStyle.Bold))
-                using (var brush = new SolidBrush(Color.White))
+                using (var brush = new SolidBrush(Color.FromArgb(250, 248, 242)))
                 {
                     var text = "✓";
                     var size = graphics.MeasureString(text, font);
@@ -283,30 +297,32 @@ namespace RespondX.Certificates
                         margin: 0;
                         padding: 20px;
                         font-family: 'Georgia', serif;
-                        background: #f5f5f5;
+                        background: #e9edf2;
                     }}
                     .certificate {{
-                        border: 8px solid #c9a84c;
-                        padding: 40px;
-                        background: white;
-                        max-width: 800px;
+                        border: 10px double #192a46;
+                        outline: 2px solid #c9a84c;
+                        outline-offset: -22px;
+                        padding: 48px;
+                        background: #faf8f2;
+                        max-width: 1000px;
                         margin: 0 auto;
                         box-shadow: 0 10px 30px rgba(0,0,0,0.2);
                     }}
                     .certificate-header {{
                         text-align: center;
                         border-bottom: 2px solid #c9a84c;
-                        padding-bottom: 20px;
-                        margin-bottom: 20px;
+                        padding-bottom: 24px;
+                        margin-bottom: 24px;
                     }}
                     .certificate-title {{
-                        font-size: 36px;
-                        color: #2d3748;
+                        font-size: 42px;
+                        color: #192a46;
                         margin: 0;
                     }}
                     .certificate-subtitle {{
                         font-size: 18px;
-                        color: #718096;
+                        color: #a6802d;
                         margin-top: 5px;
                     }}
                     .certificate-body {{
@@ -315,17 +331,17 @@ namespace RespondX.Certificates
                     }}
                     .certificate-body h2 {{
                         font-size: 28px;
-                        color: #2d3748;
+                        color: #192a46;
                         margin-bottom: 10px;
                     }}
                     .certificate-body p {{
                         font-size: 16px;
-                        color: #4a5568;
+                        color: #394a62;
                         line-height: 1.6;
                     }}
                     .certificate-body .module-name {{
                         font-size: 24px;
-                        color: #667eea;
+                        color: #a6802d;
                         font-weight: bold;
                     }}
                     .certificate-footer {{
@@ -343,19 +359,21 @@ namespace RespondX.Certificates
                     }}
                     .certificate-footer .label {{
                         font-size: 12px;
-                        color: #a0aec0;
+                        color: #68778a;
                     }}
                     .certificate-footer .value {{
                         font-size: 14px;
-                        color: #2d3748;
+                        color: #192a46;
                     }}
                     .seal {{
                         display: inline-block;
                         width: 80px;
                         height: 80px;
                         border-radius: 50%;
-                        background: linear-gradient(135deg, #f093fb, #f5576c);
-                        color: white;
+                        background: linear-gradient(135deg, #192a46, #c9a84c);
+                        color: #faf8f2;
+                        border: 2px solid #faf8f2;
+                        box-shadow: 0 0 0 2px #c9a84c;
                         line-height: 80px;
                         text-align: center;
                         font-size: 40px;
@@ -373,9 +391,9 @@ namespace RespondX.Certificates
                     <div class='certificate-body'>
                         <div class='seal'>✓</div>
                         <h2>This is to certify that</h2>
-                        <h2 style='color:#667eea;font-size:32px;'>{certificate.LearnerName}</h2>
+                        <h2 style='color:#192a46;font-size:32px;'>{HttpUtility.HtmlEncode(certificate.LearnerName ?? string.Empty)}</h2>
                         <p>has successfully completed the training module:</p>
-                        <p class='module-name'>{certificate.ModuleTitle}</p>
+                        <p class='module-name'>{HttpUtility.HtmlEncode(certificate.ModuleTitle ?? string.Empty)}</p>
                         <p>with a score of {certificate.Score:F1}%</p>
                         <p>Awarded on {certificate.IssueDate:MMMM dd, yyyy}</p>
                     </div>
@@ -384,13 +402,13 @@ namespace RespondX.Certificates
                         <div class='signature'>
                             <div class='label'>Authorized Signature</div>
                             <div class='value'>_________________</div>
-                            <div class='value'>{certificate.Issuer}</div>
+                            <div class='value'>{HttpUtility.HtmlEncode(certificate.Issuer ?? string.Empty)}</div>
                         </div>
                         <div class='verification'>
                             <div class='label'>Certificate Number</div>
-                            <div class='value'>{certificate.CertificateNumber}</div>
+                            <div class='value'>{HttpUtility.HtmlEncode(certificate.CertificateNumber ?? string.Empty)}</div>
                             <div class='label'>Verification Code</div>
-                            <div class='value'>{certificate.VerificationCode}</div>
+                            <div class='value'>{HttpUtility.HtmlEncode(certificate.VerificationCode ?? string.Empty)}</div>
                         </div>
                     </div>
                 </div>

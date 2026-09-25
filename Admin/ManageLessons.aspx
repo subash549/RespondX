@@ -22,7 +22,7 @@
 
         <div class="filter-bar">
             <div class="filter-group">
-                <asp:Button ID="btnBack" runat="server" Text="← Back to Modules" CssClass="btn btn-secondary" OnClick="btnBack_Click" />
+                <asp:Button ID="btnBack" runat="server" Text="Back to Modules" CssClass="btn btn-secondary" OnClick="btnBack_Click" />
             </div>
             <div class="filter-group">
                 <asp:Button ID="btnAddLesson" runat="server" Text="+ Add Lesson" CssClass="btn btn-success" OnClick="btnAddLesson_Click" />
@@ -48,14 +48,14 @@
                 <ItemTemplate>
                     <tr>
                         <td><%# Eval("LessonOrder") %></td>
-                        <td><strong><%# Eval("Title") %></strong></td>
+                        <td><strong><%# Server.HtmlEncode(Convert.ToString(Eval("Title"))) %></strong></td>
                         <td><span class="badge <%# Convert.ToBoolean(Eval("IsActive")) ? "badge-success" : "badge-secondary" %>"><%# Convert.ToBoolean(Eval("IsActive")) ? "Active" : "Inactive" %></span></td>
                         <td><%# Convert.ToBoolean(Eval("HasVideo")) ? "<i class='fas fa-check-circle text-success'></i>" : "<i class='fas fa-times-circle text-muted'></i>" %></td>
                         <td><%# Convert.ToBoolean(Eval("HasResources")) ? "<i class='fas fa-check-circle text-success'></i>" : "<i class='fas fa-times-circle text-muted'></i>" %></td>
                         <td>
                             <asp:Button ID="btnEdit" runat="server" Text="Edit" CssClass="btn btn-info btn-sm" CommandName="Edit" CommandArgument='<%# Eval("LessonID") %>' />
                             <asp:Button ID="btnToggle" runat="server" Text='<%# Convert.ToBoolean(Eval("IsActive")) ? "Deactivate" : "Activate" %>' CssClass='<%# Convert.ToBoolean(Eval("IsActive")) ? "btn btn-warning btn-sm" : "btn btn-success btn-sm" %>' CommandName="Toggle" CommandArgument='<%# Eval("LessonID") %>' />
-                            <asp:Button ID="btnDelete" runat="server" Text="Delete" CssClass="btn btn-danger btn-sm" CommandName="Delete" CommandArgument='<%# Eval("LessonID") %>' OnClientClick="return confirm('Are you sure you want to delete this lesson?');" />
+                            <asp:Button ID="btnDelete" runat="server" Text="Delete" CssClass="btn btn-danger btn-sm" CommandName="Delete" CommandArgument='<%# Eval("LessonID") %>' OnClientClick="return confirm('Delete this lesson? Its learner progress will also be removed.');" />
                         </td>
                     </tr>
                 </ItemTemplate>
@@ -67,7 +67,7 @@
             </asp:Repeater>
         </div>
 
-        <div class="modal fade" id="modalLesson" tabindex="-1">
+        <div class="modal fade" id="modalLesson" tabindex="-1" role="dialog" aria-modal="true" aria-hidden="true">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -77,6 +77,9 @@
                     <div class="modal-body">
                         <asp:HiddenField ID="hfLessonID" runat="server" />
                         <asp:HiddenField ID="hfModuleID" runat="server" />
+                        <asp:Panel ID="pnlModalError" runat="server" CssClass="alert alert-danger" Visible="false">
+                            <asp:Label ID="lblModalError" runat="server"></asp:Label>
+                        </asp:Panel>
                         <div class="form-group">
                             <label>Title *</label>
                             <asp:TextBox ID="txtTitle" runat="server" CssClass="form-control" />

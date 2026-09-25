@@ -50,7 +50,7 @@
                             <asp:Button ID="btnEdit" runat="server" Text="Edit" CssClass="btn btn-info btn-sm" CommandName="Edit" CommandArgument='<%# Eval("QuizID") %>' />
                             <asp:Button ID="btnQuestions" runat="server" Text="Questions" CssClass="btn btn-primary btn-sm" CommandName="Questions" CommandArgument='<%# Eval("QuizID") %>' />
                             <asp:Button ID="btnToggle" runat="server" Text='<%# Convert.ToBoolean(Eval("IsActive")) ? "Deactivate" : "Activate" %>' CssClass='<%# Convert.ToBoolean(Eval("IsActive")) ? "btn btn-warning btn-sm" : "btn btn-success btn-sm" %>' CommandName="Toggle" CommandArgument='<%# Eval("QuizID") %>' />
-                            <asp:Button ID="btnDelete" runat="server" Text="Delete" CssClass="btn btn-danger btn-sm" CommandName="Delete" CommandArgument='<%# Eval("QuizID") %>' OnClientClick="return confirm('Are you sure you want to delete this quiz?');" />
+                            <asp:Button ID="btnDelete" runat="server" Text="Deactivate" CssClass="btn btn-danger btn-sm" CommandName="Delete" CommandArgument='<%# Eval("QuizID") %>' OnClientClick="return confirm('Deactivate this quiz? Existing learner results will be preserved.');" />
                         </div>
                     </div>
                 </ItemTemplate>

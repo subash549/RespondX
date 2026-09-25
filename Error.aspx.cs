@@ -11,7 +11,12 @@ namespace RespondX
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-
+            Guid errorReference;
+            if (Guid.TryParseExact(Request.QueryString["ref"], "N", out errorReference))
+            {
+                pnlErrorReference.Visible = true;
+                lblErrorReference.Text = errorReference.ToString("N");
+            }
         }
     }
 }

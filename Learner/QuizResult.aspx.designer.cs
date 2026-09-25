@@ -15,6 +15,16 @@ namespace RespondX.Learner
     {
 
         /// <summary>
+        /// resultHeader control.
+        /// </summary>
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl resultHeader;
+
+        /// <summary>
+        /// resultIcon control.
+        /// </summary>
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl resultIcon;
+
+        /// <summary>
         /// pnlResult control.
         /// </summary>
         /// <remarks>

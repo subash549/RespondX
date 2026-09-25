@@ -47,7 +47,8 @@ namespace RespondX.Learner
                            (SELECT COUNT(*) FROM Lessons l WHERE l.ModuleID = m.ModuleID AND l.IsActive = 1) AS TotalLessons,
                            (SELECT COUNT(*) FROM LearnerProgress lp 
                             INNER JOIN Lessons l2 ON lp.LessonID = l2.LessonID 
-                            WHERE l2.ModuleID = m.ModuleID AND lp.LearnerID = @LearnerID AND lp.IsCompleted = 1) AS CompletedLessons
+                            WHERE l2.ModuleID = m.ModuleID AND lp.LearnerID = @LearnerID
+                              AND lp.Status IN (N'Completed', N'Certified')) AS CompletedLessons
                     FROM Modules m
                     LEFT JOIN Categories c ON m.CategoryID = c.CategoryID
                     LEFT JOIN Users u ON m.InstructorID = u.UserID
@@ -119,7 +120,7 @@ namespace RespondX.Learner
 
             LoadLessons(moduleId, user.UserID);
             LoadScenarios(moduleId);
-            LoadQuiz(moduleId);
+            LoadQuiz(moduleId, module.Title);
         }
 
         private void BindModuleMedia(ModuleItem module)
@@ -157,10 +158,15 @@ namespace RespondX.Learner
             using (var conn = new SqlConnection(connString))
             {
                 var query = @"
-                    SELECT l.LessonID, l.Title, l.Content, l.LessonOrder, 
-                           CAST(ISNULL(lp.IsCompleted, 0) AS BIT) AS IsCompleted
+                    SELECT l.LessonID, l.Title, l.Content, l.LessonOrder,
+                           CAST(CASE WHEN EXISTS
+                           (
+                               SELECT 1 FROM LearnerProgress lp
+                               WHERE lp.LessonID = l.LessonID
+                                 AND lp.LearnerID = @LearnerID
+                                 AND lp.Status IN (N'Completed', N'Certified')
+                           ) THEN 1 ELSE 0 END AS BIT) AS IsCompleted
                     FROM Lessons l
-                    LEFT JOIN LearnerProgress lp ON l.LessonID = lp.LessonID AND lp.LearnerID = @LearnerID
                     WHERE l.ModuleID = @ModuleID AND l.IsActive = 1
                     ORDER BY l.LessonOrder";
 
@@ -230,7 +236,7 @@ namespace RespondX.Learner
             rptScenarios.DataBind();
         }
 
-        private void LoadQuiz(int moduleId)
+        private void LoadQuiz(int moduleId, string moduleTitle)
         {
             bool hasQuiz = false;
             using (var conn = new SqlConnection(connString))
@@ -244,11 +250,21 @@ namespace RespondX.Learner
                 }
             }
 
+            if (!hasQuiz)
+            {
+                hasQuiz = QuizCatalog.GetAll().Exists(definition =>
+                    string.Equals(definition.ModuleTitle.Trim(), moduleTitle.Trim(), StringComparison.OrdinalIgnoreCase));
+            }
+
             if (hasQuiz)
             {
                 pnlQuiz.Visible = true;
                 pnlNoQuiz.Visible = false;
-                lblQuizInfo.Text = "Test your knowledge with this module quiz. You need 70% to pass.";
+                bool moduleCompleted = QuizAccessHelper.IsModuleCompleted(moduleId, SessionHelper.GetCurrentUserId().GetValueOrDefault());
+                lblQuizInfo.Text = moduleCompleted
+                    ? "Test your knowledge with this module quiz."
+                    : "Complete every active lesson in this module to unlock its quiz.";
+                btnTakeQuiz.Enabled = moduleCompleted;
                 btnTakeQuiz.CommandArgument = moduleId.ToString();
             }
             else
@@ -261,9 +277,13 @@ namespace RespondX.Learner
         protected void btnTakeQuiz_Click(object sender, EventArgs e)
         {
             var btn = sender as Button;
-            if (btn != null)
+            int moduleId;
+            var learnerId = SessionHelper.GetCurrentUserId();
+            if (btn != null && int.TryParse(btn.CommandArgument, out moduleId) && learnerId.HasValue &&
+                QuizAccessHelper.IsModuleCompleted(moduleId, learnerId.Value))
             {
-                Response.Redirect($"~/Learner/TakeQuiz.aspx?moduleId={btn.CommandArgument}");
+                Response.Redirect($"~/Learner/Quizzes.aspx?moduleId={moduleId}", false);
+                Context.ApplicationInstance.CompleteRequest();
             }
         }
 

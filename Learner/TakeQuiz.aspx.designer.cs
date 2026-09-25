@@ -33,6 +33,26 @@ namespace RespondX.Learner
         protected global::System.Web.UI.WebControls.Panel pnlQuiz;
 
         /// <summary>
+        /// quizValidationMessage control.
+        /// </summary>
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl quizValidationMessage;
+
+        /// <summary>
+        /// pnlLocked control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Panel pnlLocked;
+
+        /// <summary>
+        /// pnlNoQuestions control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Panel pnlNoQuestions;
+
+        /// <summary>
+        /// lblLockedModule control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Label lblLockedModule;
+
+        /// <summary>
         /// lblQuizTitle control.
         /// </summary>
         /// <remarks>

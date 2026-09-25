@@ -12,13 +12,58 @@
     <link runat="server" href="~/Content/Admin.css" rel="stylesheet" />
     <link runat="server" href="~/Content/Expert.css" rel="stylesheet" />
     <link runat="server" href="~/Content/Learner.css" rel="stylesheet" />
+    <script src="<%= ResolveUrl("~/Scripts/jquery-3.7.0.min.js") %>"></script>
     <asp:ContentPlaceHolder ID="HeadContent" runat="server" />
 </head>
 <body>
     <form id="form1" runat="server">
         <asp:ScriptManager runat="server" />
+
+        <script>
+            (function ($) {
+                if (!$ || $.fn.modal) return;
+
+                $.fn.modal = function (action) {
+                    return this.each(function () {
+                        var modal = this;
+                        var shouldShow = action === 'show' || (action === 'toggle' && !modal.classList.contains('show'));
+
+                        if (shouldShow) {
+                            modal.__returnFocus = document.activeElement;
+                            modal.style.display = 'block';
+                            modal.classList.add('show');
+                            modal.removeAttribute('aria-hidden');
+                            modal.setAttribute('aria-modal', 'true');
+                            document.body.classList.add('modal-open');
+                            var firstField = modal.querySelector('input:not([type="hidden"]), textarea, select, button');
+                            if (firstField) firstField.focus();
+                        } else {
+                            modal.classList.remove('show');
+                            modal.style.display = 'none';
+                            modal.setAttribute('aria-hidden', 'true');
+                            modal.removeAttribute('aria-modal');
+                            if (!document.querySelector('.modal.show'))
+                                document.body.classList.remove('modal-open');
+                            if (modal.__returnFocus && modal.__returnFocus.focus)
+                                modal.__returnFocus.focus();
+                        }
+                    });
+                };
+
+                $(document).on('click', '[data-dismiss="modal"]', function (event) {
+                    event.preventDefault();
+                    $(this).closest('.modal').modal('hide');
+                });
+                $(document).on('click', '.modal', function (event) {
+                    if (event.target === this) $(this).modal('hide');
+                });
+                $(document).on('keydown', function (event) {
+                    if (event.key === 'Escape') $('.modal.show').last().modal('hide');
+                });
+            })(window.jQuery);
+        </script>
         
-        <nav class="navbar">
+        <nav class="navbar" aria-label="Main navigation">
             <div class="container">
                 <a runat="server" href="~/Default.aspx" class="navbar-brand">
                     <i class="fas fa-shield-alt"></i> RespondX
@@ -28,10 +73,12 @@
                 </button>
                 <div class="navbar-links" id="navbarLinks">
                     <ul>
-                        <!-- Always visible public links -->
-                        <li><a runat="server" href="~/Default.aspx">Home</a></li>
-                        <li><a runat="server" href="~/About.aspx">About</a></li>
-                        <li><a runat="server" href="~/Contact.aspx">Contact</a></li>
+                        <!-- Public links are shown to guests. Signed-in users use their role navigation. -->
+                        <asp:PlaceHolder ID="phPublicNavigation" runat="server">
+                            <li><a runat="server" href="~/Default.aspx">Home</a></li>
+                            <li><a runat="server" href="~/About.aspx">About</a></li>
+                            <li><a runat="server" href="~/Contact.aspx">Contact</a></li>
+                        </asp:PlaceHolder>
 
                         <!-- Guest Links (Not Logged In) -->
                         <asp:PlaceHolder ID="phGuestLinks" runat="server">
@@ -45,10 +92,11 @@
                             <li><a runat="server" href="~/Learner/Modules.aspx">Modules</a></li>
                             <li><a runat="server" href="~/Learner/Assignments.aspx">Assignments</a></li>
                             <li><a runat="server" href="~/Learner/Quizzes.aspx">Quizzes</a></li>
+                            <li><a runat="server" href="~/Learner/Certificates.aspx">Certificates</a></li>
                             <li><a runat="server" href="~/Learner/Scenarios.aspx">Scenarios</a></li>
                             <li><a runat="server" href="~/Learner/MyProgress.aspx">Progress</a></li>
                             <li><a runat="server" href="~/Learner/Profile.aspx">Profile</a></li>
-                            <li><a runat="server" href="~/Logout.aspx"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                            <li><a runat="server" href="~/Logout.aspx" class="nav-logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                         </asp:PlaceHolder>
 
                         <!-- Admin Links -->
@@ -58,9 +106,10 @@
                             <li><a runat="server" href="~/Admin/ManageCategories.aspx">Categories</a></li>
                             <li><a runat="server" href="~/Admin/ManageModules.aspx">Modules</a></li>
                             <li><a runat="server" href="~/Admin/ManageQuizzes.aspx">Quizzes</a></li>
+                            <li><a runat="server" href="~/Admin/ManageQuestions.aspx">Quiz Questions</a></li>
                             <li><a runat="server" href="~/Admin/ManageScenarios.aspx">Scenarios</a></li>
                             <li><a runat="server" href="~/Admin/Reports.aspx">Reports</a></li>
-                            <li><a runat="server" href="~/Logout.aspx"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                            <li><a runat="server" href="~/Logout.aspx" class="nav-logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                         </asp:PlaceHolder>
 
                         <!-- Expert Links -->
@@ -70,7 +119,7 @@
                             <li><a runat="server" href="~/Expert/ReviewHistory.aspx">History</a></li>
                             <li><a runat="server" href="~/Expert/ManageAssignments.aspx">Assignments</a></li>
                             <li><a runat="server" href="~/Expert/GradeAssignments.aspx">Grades</a></li>
-                            <li><a runat="server" href="~/Logout.aspx"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                            <li><a runat="server" href="~/Logout.aspx" class="nav-logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                         </asp:PlaceHolder>
                     </ul>
                 </div>
@@ -92,12 +141,29 @@
         document.addEventListener('DOMContentLoaded', function () {
             var toggler = document.getElementById('navbarToggler');
             var links = document.getElementById('navbarLinks');
-            if (!toggler || !links) return;
+            if (toggler && links) {
+                toggler.addEventListener('click', function () {
+                    var isOpen = links.classList.toggle('active');
+                    toggler.setAttribute('aria-expanded', isOpen);
+                    toggler.querySelector('i').className = isOpen ? 'fas fa-times' : 'fas fa-bars';
+                });
+            }
 
-            toggler.addEventListener('click', function () {
-                var isOpen = links.classList.toggle('active');
-                toggler.setAttribute('aria-expanded', isOpen);
-                toggler.querySelector('i').className = isOpen ? 'fas fa-times' : 'fas fa-bars';
+            var currentPath = window.location.pathname.toLowerCase();
+            var sectionAliases = {
+                '/learner/takequiz.aspx': '/learner/quizzes.aspx',
+                '/learner/quizresult.aspx': '/learner/quizzes.aspx',
+                '/learner/lesson.aspx': '/learner/modules.aspx',
+                '/learner/moduledetails.aspx': '/learner/modules.aspx',
+                '/learner/scenariopractice.aspx': '/learner/scenarios.aspx'
+            };
+            var activePath = sectionAliases[currentPath] || currentPath;
+            document.querySelectorAll('#navbarLinks a[href]').forEach(function (link) {
+                var linkPath = new URL(link.href, window.location.href).pathname.toLowerCase();
+                if (linkPath === activePath) {
+                    link.classList.add('active');
+                    link.setAttribute('aria-current', 'page');
+                }
             });
         });
     </script>

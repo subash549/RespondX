@@ -141,6 +141,9 @@ namespace RespondX.Admin
                 case "Lessons":
                     Response.Redirect($"ManageLessons.aspx?moduleId={moduleId}");
                     break;
+                case "Quizzes":
+                    Response.Redirect($"ManageQuizzes.aspx?moduleId={moduleId}");
+                    break;
                 case "Toggle":
                     ToggleModule(moduleId);
                     break;

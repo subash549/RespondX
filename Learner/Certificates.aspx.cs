@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using RespondX.Helpers;
@@ -25,35 +26,22 @@ namespace RespondX.Learner
             var userId = SessionHelper.GetCurrentUserId();
             if (!userId.HasValue) return;
 
-            var certificates = new List<CertificateItem>
-            {
-                new CertificateItem
+            var certificates = CertificateHelper.GetCertificatesByLearner(userId.Value)
+                .Where(certificate => certificate.Score > 80m)
+                .Select(certificate => new CertificateItem
                 {
-                    CertificateID = 1,
-                    ModuleTitle = "Introduction to Emergency Response",
-                    LearnerName = "John Doe",
-                    IssueDate = DateTime.Now.AddMonths(-1),
-                    Score = 85,
-                    VerificationCode = "RX-2024-12345",
-                    IsValid = true,
-                    ExpiryDate = DateTime.Now.AddYears(2),
-                    DownloadUrl = "#",
-                    ViewUrl = "#"
-                },
-                new CertificateItem
-                {
-                    CertificateID = 2,
-                    ModuleTitle = "CPR and First Aid",
-                    LearnerName = "John Doe",
-                    IssueDate = DateTime.Now.AddDays(-5),
-                    Score = 92,
-                    VerificationCode = "RX-2024-12346",
-                    IsValid = true,
-                    ExpiryDate = DateTime.Now.AddYears(2),
-                    DownloadUrl = "#",
-                    ViewUrl = "#"
-                }
-            };
+                    CertificateID = certificate.CertificateID,
+                    ModuleTitle = certificate.ModuleTitle,
+                    LearnerName = certificate.LearnerName,
+                    IssueDate = certificate.IssueDate,
+                    Score = certificate.Score,
+                    VerificationCode = certificate.VerificationCode,
+                    IsValid = certificate.IsValid,
+                    ExpiryDate = certificate.ExpiryDate,
+                    DownloadUrl = ResolveUrl("~/Certificates/Download.aspx?id=" + certificate.CertificateID),
+                    ViewUrl = string.Empty
+                })
+                .ToList();
 
             rptCertificates.DataSource = certificates;
             rptCertificates.DataBind();

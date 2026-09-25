@@ -120,6 +120,7 @@
     <Content Include="Content\Dashboard.css" />
     <Content Include="Content\Expert.css" />
     <Content Include="Content\Learner.css" />
+    <Content Include="Content\PublicInfo.css" />
     <Content Include="Content\Site.css" />
     <Content Include="Default.aspx" />
     <Content Include="Error.aspx" />
@@ -352,6 +353,10 @@
     <Compile Include="Helpers\CertificateHelper.cs" />
     <Compile Include="Helpers\DatabaseHelper.cs" />
     <Compile Include="Helpers\ModuleMediaHelper.cs" />
+    <Compile Include="Helpers\QuizCatalog.cs" />
+    <Compile Include="Helpers\QuizQuestionRepository.cs" />
+    <Compile Include="Helpers\QuizQuestionBank.cs" />
+    <Compile Include="Helpers\QuizAccessHelper.cs" />
     <Compile Include="Helpers\PasswordHelper.cs" />
     <Compile Include="Helpers\SessionHelper.cs" />
     <Compile Include="Learner\Alerts.aspx.cs">

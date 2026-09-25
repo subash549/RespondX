@@ -139,6 +139,7 @@ namespace RespondX.Models
     public class QuizItem
     {
         public int QuizID { get; set; }
+        public int ModuleID { get; set; }
         public string Title { get; set; }
         public string Description { get; set; }
         public int TimeLimit { get; set; }
@@ -173,6 +174,7 @@ namespace RespondX.Models
     public class OptionItem
     {
         public int OptionID { get; set; }
+        public int QuestionID { get; set; }
         public string OptionText { get; set; }
         public string OptionLabel { get; set; }
         public bool IsCorrect { get; set; }
@@ -245,7 +247,7 @@ namespace RespondX.Models
         public string ModuleTitle { get; set; }
         public string LearnerName { get; set; }
         public DateTime IssueDate { get; set; }
-        public int Score { get; set; }
+        public decimal Score { get; set; }
         public string VerificationCode { get; set; }
         public bool IsValid { get; set; }
         public DateTime? ExpiryDate { get; set; }
@@ -304,6 +306,7 @@ namespace RespondX.Models
     }
 
     // ========== Answer Review Models ==========
+    [Serializable]
     public class AnswerReviewItem
     {
         public string QuestionText { get; set; }
@@ -311,6 +314,22 @@ namespace RespondX.Models
         public string CorrectAnswer { get; set; }
         public bool IsCorrect { get; set; }
         public string Explanation { get; set; }
+    }
+
+    [Serializable]
+    public class QuizResultSnapshot
+    {
+        public int QuizID { get; set; }
+        public int LearnerID { get; set; }
+        public int ModuleID { get; set; }
+        public string ModuleTitle { get; set; }
+        public int CorrectAnswers { get; set; }
+        public int TotalQuestions { get; set; }
+        public decimal PercentageScore { get; set; }
+        public int PassingScore { get; set; }
+        public string TimeTaken { get; set; }
+        public List<AnswerReviewItem> Answers { get; set; }
+        public bool CompletedAllQuestions { get; set; }
     }
 
     // ========== Report Models ==========

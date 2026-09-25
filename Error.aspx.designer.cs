@@ -13,5 +13,9 @@ namespace RespondX
 
     public partial class Error
     {
+
+        protected global::System.Web.UI.WebControls.Panel pnlErrorReference;
+
+        protected global::System.Web.UI.WebControls.Label lblErrorReference;
     }
 }

@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Data;
+using System.Data.SqlClient;
 using System.Web.UI;
 using RespondX.Helpers;
 using RespondX.Models;
@@ -8,6 +11,10 @@ namespace RespondX.Learner
 {
     public partial class Lesson : Page
     {
+        private readonly string connectionString =
+            ConfigurationManager.ConnectionStrings["DefaultConnection"]?.ConnectionString
+            ?? "Data Source=DESKTOP-5UH7Q5H\\SQLEXPRESS01;Initial Catalog=RespondX;Integrated Security=True;TrustServerCertificate=True;";
+
         protected void Page_Load(object sender, EventArgs e)
         {
             if (!AuthorizationHelper.RequireRole("Learner"))
@@ -61,13 +68,54 @@ namespace RespondX.Learner
 
         private LessonItem GetLesson(int lessonId)
         {
-            var lessons = new Dictionary<int, LessonItem>
-            {
-                { 1, new LessonItem { LessonID = 1, Title = "What is Emergency Response?", ModuleTitle = "Introduction to Emergency Response", ModuleId = 1, Content = "<h2>Understanding Emergency Response</h2><p>Emergency response is the organized approach to addressing emergencies and disasters. It involves preparation, response, and recovery efforts to protect lives and property.</p><h3>Key Components</h3><ul><li>Assessment and evaluation</li><li>Resource mobilization</li><li>Communication and coordination</li><li>Action implementation</li></ul>", EstimatedTime = 15, IsCompleted = true } },
-                { 2, new LessonItem { LessonID = 2, Title = "Assessment of Emergency Situations", ModuleTitle = "Introduction to Emergency Response", ModuleId = 1, Content = "<h2>Assessing Emergency Situations</h2><p>Proper assessment is crucial for effective emergency response. Learn how to evaluate the situation, identify risks, and prioritize actions.</p>", EstimatedTime = 20, IsCompleted = false } }
-            };
+            var learnerId = SessionHelper.GetCurrentUserId();
+            if (!learnerId.HasValue)
+                return null;
 
-            return lessons.ContainsKey(lessonId) ? lessons[lessonId] : null;
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                using (var cmd = new SqlCommand(@"
+                    SELECT l.LessonID, l.Title, l.ModuleID, l.Content, m.Title AS ModuleTitle,
+                           CAST(CASE WHEN EXISTS
+                           (
+                               SELECT 1 FROM LearnerProgress lp
+                               WHERE lp.LearnerID = @LearnerID
+                                 AND lp.LessonID = l.LessonID
+                                 AND lp.Status IN (N'Completed', N'Certified')
+                           ) THEN 1 ELSE 0 END AS BIT) AS IsCompleted
+                    FROM Lessons l
+                    INNER JOIN Modules m ON m.ModuleID = l.ModuleID
+                    WHERE l.LessonID = @LessonID AND l.IsActive = 1 AND m.IsActive = 1;", conn))
+                {
+                    cmd.Parameters.Add("@LessonID", SqlDbType.Int).Value = lessonId;
+                    cmd.Parameters.Add("@LearnerID", SqlDbType.Int).Value = learnerId.Value;
+                    conn.Open();
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (!reader.Read())
+                            return null;
+
+                        return new LessonItem
+                        {
+                            LessonID = Convert.ToInt32(reader["LessonID"]),
+                            Title = reader["Title"].ToString(),
+                            ModuleTitle = reader["ModuleTitle"].ToString(),
+                            ModuleId = Convert.ToInt32(reader["ModuleID"]),
+                            Content = reader["Content"] == DBNull.Value ? string.Empty : reader["Content"].ToString(),
+                            EstimatedTime = 15,
+                            IsCompleted = Convert.ToBoolean(reader["IsCompleted"])
+                        };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Load lesson", ex.Message, ex.StackTrace);
+                return null;
+            }
+
         }
 
         private void LoadResources(int lessonId)
@@ -94,6 +142,53 @@ namespace RespondX.Learner
 
         protected void btnMarkComplete_Click(object sender, EventArgs e)
         {
+            int lessonId;
+            var learnerId = SessionHelper.GetCurrentUserId();
+            var lesson = int.TryParse(Request.QueryString["id"], out lessonId) && learnerId.HasValue
+                ? GetLesson(lessonId)
+                : null;
+
+            if (lesson == null || lesson.IsCompleted)
+                return;
+
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var transaction = conn.BeginTransaction())
+                    using (var cmd = new SqlCommand(@"
+                        UPDATE LearnerProgress
+                        SET Status = N'Completed',
+                            ProgressPercentage = 100,
+                            CompletedAt = ISNULL(CompletedAt, GETDATE()),
+                            LastAccessedAt = GETDATE()
+                        WHERE LearnerID = @LearnerID AND ModuleID = @ModuleID AND LessonID = @LessonID;
+
+                        IF @@ROWCOUNT = 0
+                        BEGIN
+                            INSERT INTO LearnerProgress
+                                (LearnerID, ModuleID, LessonID, Status, StartedAt, CompletedAt, LastAccessedAt, ProgressPercentage, TimeSpentMinutes)
+                            VALUES
+                                (@LearnerID, @ModuleID, @LessonID, N'Completed', GETDATE(), GETDATE(), GETDATE(), 100, 0);
+                        END;", conn, transaction))
+                    {
+                        cmd.Parameters.Add("@LearnerID", SqlDbType.Int).Value = learnerId.Value;
+                        cmd.Parameters.Add("@ModuleID", SqlDbType.Int).Value = lesson.ModuleId;
+                        cmd.Parameters.Add("@LessonID", SqlDbType.Int).Value = lesson.LessonID;
+                        cmd.ExecuteNonQuery();
+                        transaction.Commit();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Mark lesson complete", ex.Message, ex.StackTrace);
+                lblLessonCompleteStatus.Text = "Unable to save completion. Please try again.";
+                lblLessonCompleteStatus.CssClass = "text-danger ml-1";
+                return;
+            }
+
             ShowNotification("Lesson marked as complete!", "success");
             btnMarkComplete.Enabled = false;
             btnMarkComplete.Text = "Completed";

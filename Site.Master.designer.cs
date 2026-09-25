@@ -42,6 +42,11 @@ namespace RespondX
         protected global::System.Web.UI.WebControls.PlaceHolder phGuestLinks;
 
         /// <summary>
+        /// phPublicNavigation control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.PlaceHolder phPublicNavigation;
+
+        /// <summary>
         /// phLearnerLinks control.
         /// </summary>
         /// <remarks>
