@@ -330,9 +330,8 @@ namespace RespondX.Admin
             try { NotificationRepository.NotifyRoles("Content", isNew ? "New lesson available" : "Lesson updated", title, "~/Learner/Modules.aspx", SessionHelper.GetCurrentUserId(), "Learner", "Expert"); }
             catch (Exception notificationError) { DatabaseHelper.LogError("Lesson notification", notificationError.Message, notificationError.StackTrace); }
             ClearForm();
+            pnlLessonEditor.Visible = false;
             LoadLessons();
-            ScriptManager.RegisterStartupScript(this, GetType(), "hideLessonModal",
-                "$('#modalLesson').modal('hide');", true);
         }
 
         private void AddLessonParameters(SqlCommand cmd, string title, string content, int lessonOrder,
@@ -423,8 +422,14 @@ namespace RespondX.Admin
 
         private void OpenLessonModal()
         {
-            ScriptManager.RegisterStartupScript(this, GetType(), "showLessonModal",
-                "$('#modalLesson').modal('show');", true);
+            pnlLessonEditor.Visible = true;
+        }
+
+        protected void btnCancelLesson_Click(object sender, EventArgs e)
+        {
+            ClearForm();
+            pnlLessonEditor.Visible = false;
+            pnlError.Visible = false;
         }
 
         private void ShowFormError(string message)

@@ -84,6 +84,8 @@ namespace RespondX.Admin
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.Button btnAddLesson;
+        protected global::System.Web.UI.WebControls.Panel pnlLessonEditor;
+        protected global::System.Web.UI.WebControls.Button btnCancelLesson;
 
         /// <summary>
         /// rptLessons control.

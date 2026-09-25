@@ -23,7 +23,7 @@
                         <asp:LinkButton ID="btnBack" runat="server" CssClass="btn btn-secondary" OnClick="btnBack_Click"><img runat="server" src="~/Content/Images/icons/arrow-left.svg" alt="" class="img-icon" />Back to Modules</asp:LinkButton>
                     </div>
                     <div class="filter-group">
-                        <asp:Button ID="btnAddLesson" runat="server" Text="+ Add Lesson" CssClass="btn btn-success" OnClick="btnAddLesson_Click" />
+                        <asp:Button ID="btnAddLesson" runat="server" Text="+ Add Lesson" CssClass="btn btn-success" OnClick="btnAddLesson_Click" CausesValidation="false" />
                     </div>
                 </div>
 
@@ -65,52 +65,23 @@
                     </asp:Repeater>
                 </div>
 
-                <div class="modal fade" id="modalLesson" tabindex="-1" role="dialog" aria-modal="true" aria-hidden="true">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title"><asp:Label ID="lblModalTitle" runat="server" Text="Add Lesson"></asp:Label></h5>
-                                <button type="button" class="close" data-dismiss="modal">&times;</button>
-                            </div>
-                            <div class="modal-body">
-                                <asp:HiddenField ID="hfLessonID" runat="server" />
-                                <asp:HiddenField ID="hfModuleID" runat="server" />
-                                <asp:Panel ID="pnlModalError" runat="server" CssClass="alert alert-danger" Visible="false">
-                                    <asp:Label ID="lblModalError" runat="server"></asp:Label>
-                                </asp:Panel>
-                                <div class="form-group">
-                                    <label>Title *</label>
-                                    <asp:TextBox ID="txtTitle" runat="server" CssClass="form-control" />
-                                </div>
-                                <div class="form-group">
-                                    <label>Content *</label>
-                                    <asp:TextBox ID="txtContent" runat="server" CssClass="form-control" TextMode="MultiLine" Rows="8" />
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group col-6">
-                                        <label>Lesson Order</label>
-                                        <asp:TextBox ID="txtOrder" runat="server" CssClass="form-control" TextMode="Number" />
-                                    </div>
-                                    <div class="form-group col-6">
-                                        <label>Video URL</label>
-                                        <asp:TextBox ID="txtVideoUrl" runat="server" CssClass="form-control" placeholder="https://..." />
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label>Resource URL</label>
-                                    <asp:TextBox ID="txtResourceUrl" runat="server" CssClass="form-control" placeholder="https://..." />
-                                </div>
-                                <div class="form-group">
-                                    <asp:CheckBox ID="chkIsActive" runat="server" Checked="true" Text="Active" CssClass="form-check-inline" />
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                                <asp:Button ID="btnSaveLesson" runat="server" Text="Save" CssClass="btn btn-primary" OnClick="btnSaveLesson_Click" />
-                            </div>
-                        </div>
+                <asp:Panel ID="pnlLessonEditor" runat="server" CssClass="card lesson-editor" Visible="false">
+                    <div class="lesson-editor-heading">
+                        <div><h2><asp:Label ID="lblModalTitle" runat="server" Text="Add Lesson" /></h2><p>Enter the material learners need to read or watch before completing this lesson.</p></div>
+                        <asp:Button ID="btnCancelLesson" runat="server" Text="Cancel" CssClass="btn btn-secondary" OnClick="btnCancelLesson_Click" CausesValidation="false" />
                     </div>
-                </div>
+                    <asp:HiddenField ID="hfLessonID" runat="server" />
+                    <asp:HiddenField ID="hfModuleID" runat="server" />
+                    <asp:Panel ID="pnlModalError" runat="server" CssClass="alert alert-danger" Visible="false"><asp:Label ID="lblModalError" runat="server" /></asp:Panel>
+                    <div class="form-group"><label for="<%= txtTitle.ClientID %>">Lesson Title *</label><asp:TextBox ID="txtTitle" runat="server" CssClass="form-control" MaxLength="100" /></div>
+                    <div class="form-group"><label for="<%= txtContent.ClientID %>">Lesson Content *</label><asp:TextBox ID="txtContent" runat="server" CssClass="form-control lesson-content-input" TextMode="MultiLine" Rows="8" /><small>Write instructions, an explanation, or an activity. Learners can mark the lesson complete once it is available.</small></div>
+                    <div class="form-row">
+                        <div class="form-group col-6"><label for="<%= txtOrder.ClientID %>">Lesson Order</label><asp:TextBox ID="txtOrder" runat="server" CssClass="form-control" TextMode="Number" placeholder="Auto" /></div>
+                        <div class="form-group col-6"><label for="<%= txtVideoUrl.ClientID %>">Video URL (optional)</label><asp:TextBox ID="txtVideoUrl" runat="server" CssClass="form-control" placeholder="https://..." /></div>
+                    </div>
+                    <div class="form-group"><label for="<%= txtResourceUrl.ClientID %>">Resource URL (optional)</label><asp:TextBox ID="txtResourceUrl" runat="server" CssClass="form-control" placeholder="https://..." /></div>
+                    <div class="lesson-editor-footer"><asp:CheckBox ID="chkIsActive" runat="server" Checked="true" Text="Active and visible to learners" /><asp:Button ID="btnSaveLesson" runat="server" Text="Save Lesson" CssClass="btn btn-primary" OnClick="btnSaveLesson_Click" /></div>
+                </asp:Panel>
             </div>
         </ContentTemplate>
     </asp:UpdatePanel>
@@ -160,6 +131,13 @@
             align-items: center;
             flex-wrap: wrap;
         }
+        .lesson-editor { padding: 24px; margin-bottom: 22px; }
+        .lesson-editor-heading, .lesson-editor-footer { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; }
+        .lesson-editor-heading h2 { margin:0 0 4px; font-size:20px; }
+        .lesson-editor-heading p, .lesson-editor small { color:#718096; margin:0; }
+        .lesson-editor .form-group { margin-bottom:16px; }
+        .lesson-content-input { min-height:180px; }
+        .lesson-editor-footer { margin:0; padding-top:16px; border-top:1px solid #e2e8f0; }
         .text-center {
             text-align: center;
         }

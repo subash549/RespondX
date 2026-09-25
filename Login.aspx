@@ -10,16 +10,24 @@
     <link runat="server" href="~/Content/Site.css" rel="stylesheet" />
     <link runat="server" href="~/Content/Auth.css" rel="stylesheet" />
 </head>
-<body class="auth-page">
+<body class="auth-page login-page">
     <form id="form1" runat="server">
-        <div class="auth-container">
-            <div class="auth-card">
-                <div class="auth-header">
-                    <h1><i class="fas fa-shield-alt"></i> RespondX</h1>
-                    <p>Emergency Response Training Platform</p>
-                </div>
+        <div class="login-shell">
+            <div class="auth-container login-main">
+                <section class="login-intro" aria-labelledby="loginIntroTitle">
+                    <a href="Default.aspx" class="login-brand"><i class="fas fa-shield-alt" aria-hidden="true"></i><span>RespondX</span></a>
+                    <p class="login-kicker">EMERGENCY RESPONSE TRAINING</p>
+                    <h1 id="loginIntroTitle">Build skills to respond with confidence.</h1>
+                    <p class="login-intro-copy">Learn essential concepts, practise decisions in realistic scenarios, and keep track of your progress in one place.</p>
+                    <div class="login-benefits">
+                        <div><span><i class="fas fa-book-open" aria-hidden="true"></i></span><p><strong>Guided lessons</strong><small>Move through organized training modules.</small></p></div>
+                        <div><span><i class="fas fa-people-arrows-left-right" aria-hidden="true"></i></span><p><strong>Scenario practice</strong><small>Apply what you learn to practical situations.</small></p></div>
+                        <div><span><i class="fas fa-chart-line" aria-hidden="true"></i></span><p><strong>Progress tracking</strong><small>See completed lessons and next steps.</small></p></div>
+                    </div>
+                </section>
 
-                <div class="auth-body">
+                <div class="auth-card login-card">
+                    <div class="auth-body">
                     <h2>Welcome Back</h2>
                     <p class="auth-subtitle">Sign in to continue your training</p>
 
@@ -61,8 +69,15 @@
                     <div class="auth-footer">
                         <p>Don't have an account? <a href="Signup.aspx">Sign Up</a></p>
                     </div>
+                    </div>
                 </div>
             </div>
+
+            <footer class="login-footer">
+                <div class="login-footer-brand"><strong>RespondX</strong><span>Emergency response learning, made practical.</span></div>
+                <nav aria-label="Helpful links"><a href="About.aspx">About</a><a href="Contact.aspx">Help &amp; Support</a><a href="Signup.aspx">Create an account</a></nav>
+                <small>&copy; <%: DateTime.Now.Year %> RespondX. Training to help you prepare.</small>
+            </footer>
         </div>
     </form>
 
