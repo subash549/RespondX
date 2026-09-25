@@ -8,6 +8,38 @@ namespace RespondX.Helpers
 {
     public static class NotificationRepository
     {
+        public static void EnsureSchema()
+        {
+            const string sql = @"
+                IF OBJECT_ID(N'dbo.Notifications', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE dbo.Notifications
+                    (
+                        NotificationID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Notifications PRIMARY KEY,
+                        RecipientUserID INT NOT NULL,
+                        ActorUserID INT NULL,
+                        NotificationType NVARCHAR(30) NOT NULL,
+                        Title NVARCHAR(150) NOT NULL,
+                        Message NVARCHAR(500) NOT NULL,
+                        TargetUrl NVARCHAR(255) NULL,
+                        CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Notifications_CreatedAt DEFAULT (GETDATE()),
+                        ReadAt DATETIME2(0) NULL,
+                        CONSTRAINT FK_Notifications_Recipient FOREIGN KEY (RecipientUserID) REFERENCES dbo.Users(UserID),
+                        CONSTRAINT FK_Notifications_Actor FOREIGN KEY (ActorUserID) REFERENCES dbo.Users(UserID)
+                    );
+                END;
+
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Notifications_Recipient_Unread' AND object_id = OBJECT_ID(N'dbo.Notifications'))
+                    CREATE INDEX IX_Notifications_Recipient_Unread ON dbo.Notifications(RecipientUserID, ReadAt, CreatedAt DESC);";
+
+            using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
+            using (var cmd = new SqlCommand(sql, conn))
+            {
+                conn.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+
         public static void NotifyRoles(string notificationType, string title, string message, string targetUrl, int? actorUserId, params string[] roles)
         {
             if (roles == null || roles.Length == 0) return;

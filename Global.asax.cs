@@ -19,6 +19,14 @@ namespace RespondX
             BundleConfig.RegisterBundles(System.Web.Optimization.BundleTable.Bundles);
 
             ModuleMediaHelper.EnsureModuleMediaColumns();
+            try
+            {
+                NotificationRepository.EnsureSchema();
+            }
+            catch (Exception ex)
+            {
+                DatabaseHelper.LogError("Ensure notification schema", ex.Message, ex.StackTrace);
+            }
         }
 
         protected void Session_Start(object sender, EventArgs e)
