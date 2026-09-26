@@ -36,11 +36,11 @@ namespace RespondX.Learner
                     SELECT s.ScenarioID, s.Title, s.Description, s.ScenarioText, s.DifficultyLevel, m.Title AS ModuleTitle,
                            (SELECT TOP 1 lp.Status FROM dbo.LearnerProgress lp
                             WHERE lp.LearnerID = @LearnerID AND lp.ScenarioID = s.ScenarioID
-                            ORDER BY lp.LastAccessedAt DESC) AS LearnerStatus
+                            ORDER BY lp.LastAccessedAt DESC) AS LearnerStatus,
+                           EXISTS (SELECT 1 FROM dbo.ScenarioOptions o WHERE o.ScenarioID = s.ScenarioID) AS HasOptions
                     FROM dbo.Scenarios s
                     INNER JOIN dbo.Modules m ON m.ModuleID = s.ModuleID
                     WHERE s.IsActive = 1 AND m.IsActive = 1
-                      AND EXISTS (SELECT 1 FROM dbo.ScenarioOptions o WHERE o.ScenarioID = s.ScenarioID)
                       AND (@Difficulty IS NULL OR s.DifficultyLevel = @Difficulty)
                       AND (@Search IS NULL OR s.Title LIKE @Search OR s.Description LIKE @Search OR m.Title LIKE @Search)
                     ORDER BY m.ModuleOrder, s.ScenarioOrder, s.ScenarioID;", conn))
@@ -71,7 +71,8 @@ namespace RespondX.Learner
                                 // Reading time plus a couple of minutes to decide.
                                 TimeEstimate = Math.Max(3, text.Split((char[])null, StringSplitOptions.RemoveEmptyEntries).Length / 200 + 2),
                                 Status = completed ? "Completed" : attempted ? "Try again" : "Not started",
-                                StatusBadge = completed ? "badge-success" : attempted ? "badge-warning" : "badge-secondary"
+                                StatusBadge = completed ? "badge-success" : attempted ? "badge-warning" : "badge-secondary",
+                                HasOptions = Convert.ToBoolean(reader["HasOptions"])
                             });
                         }
                     }

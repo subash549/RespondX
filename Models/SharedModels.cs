@@ -124,6 +124,7 @@ namespace RespondX.Models
         public string Status { get; set; }
         public string StatusBadge { get; set; }
         public int Attempts { get; set; }
+        public bool HasOptions { get; set; }
     }
 
     public class ScenarioOptionItem
