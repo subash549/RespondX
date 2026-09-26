@@ -36,7 +36,7 @@
                         <asp:Button ID="btnSearch" runat="server" Text="Search" CssClass="btn btn-primary" OnClick="btnSearch_Click" />
                     </div>
                     <div class="filter-group">
-                        <asp:Button ID="btnAddModule" runat="server" Text="+ Add Module" CssClass="btn btn-success" OnClick="btnAddModule_Click" />
+                        <asp:Button ID="btnAddModule" runat="server" Text="+ Add Module" CssClass="btn btn-success" OnClick="btnAddModule_Click" UseSubmitBehavior="false" />
                     </div>
                 </asp:Panel>
 

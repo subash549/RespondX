@@ -124,31 +124,30 @@ namespace RespondX.Learner
                 return;
             }
 
-            int assignmentId = int.Parse(hfAssignmentID.Value);
+            int assignmentId;
+            if (!int.TryParse(hfAssignmentID.Value, out assignmentId) || assignmentId <= 0)
+            {
+                ShowError("Select an assignment before submitting. Close this form and open the assignment again.");
+                return;
+            }
             var user = SessionHelper.GetCurrentUser();
 
             using (var conn = new SqlConnection(connString))
             {
-                // Check if submission exists
-                var checkCmd = new SqlCommand("SELECT COUNT(1) FROM AssignmentSubmissions WHERE AssignmentID = @AssignmentID AND LearnerID = @LearnerID", conn);
-                checkCmd.Parameters.AddWithValue("@AssignmentID", assignmentId);
-                checkCmd.Parameters.AddWithValue("@LearnerID", user.UserID);
-                
                 conn.Open();
-                bool exists = Convert.ToInt32(checkCmd.ExecuteScalar()) > 0;
-
-                string query = exists ? 
-                    @"UPDATE AssignmentSubmissions SET Content = @Content, FileUrl = @FileUrl, SubmittedAt = GETDATE(), Status = 'Submitted' 
-                      WHERE AssignmentID = @AssignmentID AND LearnerID = @LearnerID" :
-                    @"INSERT INTO AssignmentSubmissions (AssignmentID, LearnerID, Content, FileUrl, SubmittedAt, Status) 
-                      VALUES (@AssignmentID, @LearnerID, @Content, @FileUrl, GETDATE(), 'Submitted')";
-
-                using (var cmd = new SqlCommand(query, conn))
+                // Use one atomic upsert so concurrent submissions cannot race the unique key.
+                using (var cmd = new SqlCommand(@"
+                    UPDATE AssignmentSubmissions WITH (UPDLOCK, SERIALIZABLE)
+                    SET Content = @Content, FileUrl = @FileUrl, SubmittedAt = GETDATE(), Status = N'Submitted'
+                    WHERE AssignmentID = @AssignmentID AND LearnerID = @LearnerID;
+                    IF @@ROWCOUNT = 0
+                        INSERT INTO AssignmentSubmissions (AssignmentID, LearnerID, Content, FileUrl, SubmittedAt, Status)
+                        VALUES (@AssignmentID, @LearnerID, @Content, @FileUrl, GETDATE(), N'Submitted');", conn))
                 {
-                    cmd.Parameters.AddWithValue("@AssignmentID", assignmentId);
-                    cmd.Parameters.AddWithValue("@LearnerID", user.UserID);
-                    cmd.Parameters.AddWithValue("@Content", txtContent.Text.Trim());
-                    cmd.Parameters.AddWithValue("@FileUrl", string.IsNullOrEmpty(txtFileUrl.Text) ? (object)DBNull.Value : txtFileUrl.Text.Trim());
+                    cmd.Parameters.Add("@AssignmentID", System.Data.SqlDbType.Int).Value = assignmentId;
+                    cmd.Parameters.Add("@LearnerID", System.Data.SqlDbType.Int).Value = user.UserID;
+                    cmd.Parameters.Add("@Content", System.Data.SqlDbType.NVarChar, -1).Value = txtContent.Text.Trim();
+                    cmd.Parameters.Add("@FileUrl", System.Data.SqlDbType.NVarChar, 1000).Value = string.IsNullOrWhiteSpace(txtFileUrl.Text) ? (object)DBNull.Value : txtFileUrl.Text.Trim();
                     
                     cmd.ExecuteNonQuery();
                 }
@@ -156,7 +155,7 @@ namespace RespondX.Learner
 
             ShowSuccess("Assignment submitted successfully");
             LoadAssignments();
-            ScriptManager.RegisterStartupScript(this, GetType(), "hideModal", "$('#modalSubmit').modal('hide');", true);
+            UiHelper.HideModal(this, "modalSubmit");
         }
 
         protected void ddlFilter_SelectedIndexChanged(object sender, EventArgs e)

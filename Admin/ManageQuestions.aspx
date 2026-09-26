@@ -27,7 +27,7 @@
                         <asp:DropDownList ID="ddlQuiz" runat="server" CssClass="form-control" AutoPostBack="true" OnSelectedIndexChanged="ddlQuiz_SelectedIndexChanged" />
                     </div>
                     <div class="filter-group">
-                        <asp:Button ID="btnAddQuestion" runat="server" Text="+ Add Question" CssClass="btn btn-success" OnClick="btnAddQuestion_Click" />
+                        <asp:Button ID="btnAddQuestion" runat="server" Text="+ Add Question" CssClass="btn btn-success" OnClick="btnAddQuestion_Click" UseSubmitBehavior="false" />
                     </div>
                 </div>
 

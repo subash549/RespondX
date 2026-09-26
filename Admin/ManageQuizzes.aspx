@@ -23,7 +23,7 @@
                         <asp:LinkButton ID="btnBack" runat="server" CssClass="btn btn-secondary" OnClick="btnBack_Click"><img runat="server" src="~/Content/Images/icons/arrow-left.svg" alt="" class="img-icon" />Back to Modules</asp:LinkButton>
                     </div>
                     <div class="filter-group">
-                        <asp:Button ID="btnAddQuiz" runat="server" Text="+ Add Quiz" CssClass="btn btn-success" OnClick="btnAddQuiz_Click" />
+                        <asp:Button ID="btnAddQuiz" runat="server" Text="+ Add Quiz" CssClass="btn btn-success" OnClick="btnAddQuiz_Click" UseSubmitBehavior="false" />
                     </div>
                 </div>
 

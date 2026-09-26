@@ -24,7 +24,7 @@
                         <asp:Button ID="btnSearch" runat="server" Text="Search" CssClass="btn btn-primary" OnClick="btnSearch_Click" />
                     </div>
                     <div class="filter-group">
-                        <asp:Button ID="btnAddCategory" runat="server" Text="+ Add Category" CssClass="btn btn-success" OnClick="btnAddCategory_Click" />
+                        <asp:Button ID="btnAddCategory" runat="server" Text="+ Add Category" CssClass="btn btn-success" OnClick="btnAddCategory_Click" UseSubmitBehavior="false" />
                     </div>
                 </asp:Panel>
 
