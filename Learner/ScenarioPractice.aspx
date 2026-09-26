@@ -19,6 +19,11 @@
                         <asp:Literal ID="litScenarioText" runat="server"></asp:Literal>
                     </div>
 
+                    <asp:Panel ID="pnlNoOptions" runat="server" CssClass="alert alert-info" Visible="false">
+                        This scenario is available, but its response options have not been added yet. Please check back later.
+                        <a runat="server" href="~/Learner/Scenarios.aspx">Browse other scenarios</a>.
+                    </asp:Panel>
+
                     <asp:UpdatePanel ID="upAnswer" runat="server">
                         <ContentTemplate>
                             <div class="scenario-options">

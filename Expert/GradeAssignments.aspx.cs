@@ -159,18 +159,50 @@ namespace RespondX.Expert
 
             try
             {
+                int learnerId;
+                string assignmentTitle;
                 using (var conn = new SqlConnection(connString))
-                using (var cmd = new SqlCommand(@"
-                    UPDATE AssignmentSubmissions
-                    SET Score = @Score, Feedback = @Feedback, Status = N'Graded'
-                    WHERE SubmissionID = @ID", conn))
                 {
-                    cmd.Parameters.AddWithValue("@Score", score);
-                    cmd.Parameters.AddWithValue("@Feedback", txtFeedback.Text.Trim());
-                    cmd.Parameters.AddWithValue("@ID", submissionId);
                     conn.Open();
-                    cmd.ExecuteNonQuery();
+                    using (var cmd = new SqlCommand(@"
+                        SELECT s.LearnerID, a.Title
+                        FROM AssignmentSubmissions s
+                        INNER JOIN Assignments a ON a.AssignmentID = s.AssignmentID
+                        WHERE s.SubmissionID = @ID", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@ID", submissionId);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (!reader.Read())
+                            {
+                                ShowGradeError("This submission could not be found.");
+                                return;
+                            }
+                            learnerId = Convert.ToInt32(reader["LearnerID"]);
+                            assignmentTitle = Convert.ToString(reader["Title"]);
+                        }
+                    }
+
+                    using (var cmd = new SqlCommand(@"
+                        UPDATE AssignmentSubmissions
+                        SET Score = @Score, Feedback = @Feedback, Status = N'Graded'
+                        WHERE SubmissionID = @ID", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@Score", score);
+                        cmd.Parameters.AddWithValue("@Feedback", txtFeedback.Text.Trim());
+                        cmd.Parameters.AddWithValue("@ID", submissionId);
+                        cmd.ExecuteNonQuery();
+                    }
                 }
+
+                var actor = SessionHelper.GetCurrentUserId();
+                NotificationRepository.NotifyUser(
+                    learnerId,
+                    "AssignmentGraded",
+                    "Assignment graded",
+                    "Your submission for '" + assignmentTitle + "' has been graded. Score: " + score + ".",
+                    "~/Learner/Assignments.aspx",
+                    actor);
             }
             catch (Exception ex)
             {

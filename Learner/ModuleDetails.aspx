@@ -79,9 +79,10 @@
                                         <p><%# Eval("Description") %></p>
                                         <span class="badge badge-info">Difficulty: <%# Eval("Difficulty") %></span>
                                     </div>
-                                    <a href='ScenarioPractice.aspx?id=<%# Eval("ScenarioID") %>' class="btn btn-sm btn-success">
+                                    <asp:HyperLink runat="server" Visible='<%# (bool)Eval("HasOptions") %>' NavigateUrl='<%# "~/Learner/ScenarioPractice.aspx?id=" + Eval("ScenarioID") %>' CssClass="btn btn-sm btn-success">
                                         <i class="fas fa-users"></i> Practice
-                                    </a>
+                                    </asp:HyperLink>
+                                    <asp:Label runat="server" Visible='<%# !(bool)Eval("HasOptions") %>' CssClass="text-muted" Text="Practice options are being added." />
                                 </div>
                             </ItemTemplate>
                             <FooterTemplate>

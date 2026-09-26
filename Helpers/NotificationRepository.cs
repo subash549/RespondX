@@ -62,6 +62,26 @@ namespace RespondX.Helpers
             }
         }
 
+        public static void NotifyUser(int recipientUserId, string notificationType, string title, string message, string targetUrl, int? actorUserId)
+        {
+            using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))
+            using (var cmd = new SqlCommand(@"
+                INSERT INTO dbo.Notifications (RecipientUserID, ActorUserID, NotificationType, Title, Message, TargetUrl)
+                SELECT u.UserID, @ActorUserID, @Type, @Title, @Message, @TargetUrl
+                FROM dbo.Users u
+                WHERE u.UserID = @RecipientUserID AND u.IsActive = 1;", conn))
+            {
+                cmd.Parameters.Add("@RecipientUserID", SqlDbType.Int).Value = recipientUserId;
+                cmd.Parameters.Add("@ActorUserID", SqlDbType.Int).Value = actorUserId.HasValue ? (object)actorUserId.Value : DBNull.Value;
+                cmd.Parameters.Add("@Type", SqlDbType.NVarChar, 30).Value = notificationType;
+                cmd.Parameters.Add("@Title", SqlDbType.NVarChar, 150).Value = title;
+                cmd.Parameters.Add("@Message", SqlDbType.NVarChar, 500).Value = message;
+                cmd.Parameters.Add("@TargetUrl", SqlDbType.NVarChar, 255).Value = string.IsNullOrWhiteSpace(targetUrl) ? (object)DBNull.Value : targetUrl;
+                conn.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+
         public static int GetUnreadCount(int userId)
         {
             using (var conn = new SqlConnection(DatabaseHelper.ConnectionString))

@@ -54,7 +54,7 @@ namespace RespondX.Learner
             {
                 int scenarioId;
                 var scenario = int.TryParse(Request.QueryString["id"], out scenarioId) ? GetScenario(scenarioId) : null;
-                if (scenario == null || scenario.Options.Count == 0)
+                if (scenario == null)
                 {
                     pnlScenario.Visible = false;
                     pnlNotFound.Visible = true;
@@ -62,6 +62,9 @@ namespace RespondX.Learner
                 }
 
                 pnlScenario.Visible = true;
+                bool hasOptions = scenario.Options.Count > 0;
+                pnlNoOptions.Visible = !hasOptions;
+                upAnswer.Visible = hasOptions;
                 hfScenarioId.Value = scenario.ScenarioID.ToString();
                 Page.Title = scenario.Title;
                 lblTitle.Text = Server.HtmlEncode(scenario.Title);

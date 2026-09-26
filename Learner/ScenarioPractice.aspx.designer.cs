@@ -68,6 +68,11 @@ namespace RespondX.Learner
         protected global::System.Web.UI.WebControls.Literal litScenarioText;
 
         /// <summary>
+        /// pnlNoOptions control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Panel pnlNoOptions;
+
+        /// <summary>
         /// upAnswer control.
         /// </summary>
         /// <remarks>

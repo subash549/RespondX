@@ -204,8 +204,9 @@ namespace RespondX.Learner
             using (var conn = new SqlConnection(connString))
             {
                 var query = @"
-                    SELECT ScenarioID, Title, Description, DifficultyLevel 
-                    FROM Scenarios 
+                    SELECT s.ScenarioID, s.Title, s.Description, s.DifficultyLevel,
+                           CAST(CASE WHEN EXISTS (SELECT 1 FROM dbo.ScenarioOptions o WHERE o.ScenarioID = s.ScenarioID) THEN 1 ELSE 0 END AS BIT) AS HasOptions
+                    FROM dbo.Scenarios s
                     WHERE ModuleID = @ModuleID AND IsActive = 1";
 
                 using (var cmd = new SqlCommand(query, conn))
@@ -225,7 +226,8 @@ namespace RespondX.Learner
                                 ScenarioID = Convert.ToInt32(reader["ScenarioID"]),
                                 Title = reader["Title"].ToString(),
                                 Description = reader["Description"].ToString(),
-                                Difficulty = GetDifficultyLabel(difficultyLevel)
+                                Difficulty = GetDifficultyLabel(difficultyLevel),
+                                HasOptions = Convert.ToBoolean(reader["HasOptions"])
                             });
                         }
                     }

@@ -37,7 +37,8 @@ namespace RespondX.Learner
                            (SELECT TOP 1 lp.Status FROM dbo.LearnerProgress lp
                             WHERE lp.LearnerID = @LearnerID AND lp.ScenarioID = s.ScenarioID
                             ORDER BY lp.LastAccessedAt DESC) AS LearnerStatus,
-                           EXISTS (SELECT 1 FROM dbo.ScenarioOptions o WHERE o.ScenarioID = s.ScenarioID) AS HasOptions
+                           CAST(CASE WHEN EXISTS (SELECT 1 FROM dbo.ScenarioOptions o WHERE o.ScenarioID = s.ScenarioID)
+                                     THEN 1 ELSE 0 END AS BIT) AS HasOptions
                     FROM dbo.Scenarios s
                     INNER JOIN dbo.Modules m ON m.ModuleID = s.ModuleID
                     WHERE s.IsActive = 1 AND m.IsActive = 1
@@ -80,7 +81,7 @@ namespace RespondX.Learner
             }
             catch (Exception ex)
             {
-                DatabaseHelper.LogError("Load learner scenarios", ex.Message, ex.StackTrace);
+                DatabaseHelper.LogError("Load learner scenarios (LearnerID " + learnerId + ")", ex.ToString(), ex.StackTrace);
                 UiHelper.Notify(this, "Scenarios could not be loaded right now. Please try again.", "error");
             }
 
